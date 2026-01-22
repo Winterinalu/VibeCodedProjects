@@ -3,16 +3,60 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Memory Card Match</title>
+    <title>NEON CIRCUIT: Memory Protocol</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;600&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Roboto+Mono:wght@300;400;500&display=swap');
+
+        :root {
+            --bg-dark: #0B0F1A;
+            --panel-dark: #11162A;
+            --border-dark: #1B2140;
+            --neon-cyan: #00F5FF;
+            --neon-magenta: #FF2ED1;
+            --neon-purple: #7C3AED;
+            --status-success: #00FF9C;
+            --text-primary: #E5E7EB;
+            --text-muted: #9CA3AF;
+        }
 
         body {
-            font-family: 'Fredoka', sans-serif;
-            background-color: #f0fdf4; /* Light green bg */
+            font-family: 'Roboto Mono', monospace;
+            background-color: var(--bg-dark);
+            color: var(--text-primary);
             user-select: none;
             -webkit-user-select: none;
+            overflow-x: hidden;
+        }
+
+        h1, h2, h3, .hud-label, .btn-text {
+            font-family: 'Orbitron', sans-serif;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        /* --- CRT Scanline Effect --- */
+        .scanlines {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(
+                to bottom,
+                rgba(255,255,255,0),
+                rgba(255,255,255,0) 50%,
+                rgba(0,0,0,0.2) 50%,
+                rgba(0,0,0,0.2)
+            );
+            background-size: 100% 4px;
+            pointer-events: none;
+            z-index: 100;
+            opacity: 0.15;
+        }
+        
+        .glow-text-cyan {
+            text-shadow: 0 0 5px var(--neon-cyan), 0 0 10px var(--neon-cyan);
         }
 
         /* Perspective for the flip effect */
@@ -24,7 +68,7 @@
         .memory-card {
             position: relative;
             transform-style: preserve-3d;
-            transition: transform 0.5s;
+            transition: transform 0.4s cubic-bezier(0.4, 0.0, 0.2, 1); /* Quick ease-out */
             cursor: pointer;
         }
 
@@ -32,15 +76,16 @@
             transform: rotateY(180deg);
         }
 
-        /* Matched animation */
-        .memory-card.matched {
-            animation: pulse 0.5s ease-in-out;
+        /* Matched animation - Neon Pulse */
+        .memory-card.matched .front-face {
+            animation: neon-pulse 1s infinite alternate;
+            border-color: var(--status-success);
+            box-shadow: 0 0 15px var(--status-success);
         }
 
-        @keyframes pulse {
-            0% { transform: rotateY(180deg) scale(1); }
-            50% { transform: rotateY(180deg) scale(1.1); }
-            100% { transform: rotateY(180deg) scale(1); }
+        @keyframes neon-pulse {
+            from { box-shadow: 0 0 5px var(--status-success); }
+            to { box-shadow: 0 0 20px var(--status-success), 0 0 10px var(--status-success) inset; }
         }
 
         /* Front and Back faces */
@@ -54,37 +99,42 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            border-radius: 0.75rem;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-            font-size: 2.5rem; /* Emoji size */
+            /* Sharp edges */
+            border-radius: 2px; 
+            border: 1px solid var(--border-dark);
         }
 
-        /* Front face (the emoji) */
+        /* Front face (the content) */
         .front-face {
-            background-color: white;
+            background-color: var(--panel-dark);
             transform: rotateY(180deg);
-            border: 2px solid #cbd5e1;
+            border: 1px solid var(--neon-cyan);
+            font-size: 2.5rem;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
         }
 
         /* Back face (the pattern) */
         .back-face {
-            background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
-            color: white;
-            font-size: 1.5rem;
+            background-color: #0f1320;
+            border: 1px solid var(--neon-magenta);
+            color: var(--neon-magenta);
+            box-shadow: 0 0 5px rgba(255, 46, 209, 0.2) inset;
         }
         
-        /* Custom pattern on back */
+        /* Tech pattern on back */
         .back-face::after {
-            content: "?";
+            content: "☁"; /* Cloud/Network icon placeholder */
+            font-family: 'Roboto Mono', monospace;
             font-weight: bold;
-            font-size: 2rem;
+            font-size: 1.5rem;
             opacity: 0.8;
+            text-shadow: 0 0 5px var(--neon-magenta);
         }
 
-        /* Responsive grid adjustments */
+        /* Responsive grid */
         #game-grid {
             display: grid;
-            gap: 0.75rem;
+            gap: 1rem;
             width: 100%;
             max-width: 800px;
             margin: 0 auto;
@@ -100,95 +150,190 @@
             pointer-events: none;
             z-index: 50;
         }
+
+        /* Custom UI Elements */
+        .cyber-panel {
+            background-color: var(--panel-dark);
+            border: 1px solid var(--neon-cyan);
+            box-shadow: 0 0 10px rgba(0, 245, 255, 0.1);
+            position: relative;
+        }
+        
+        /* Corner Cut Effect (CSS Clip-path simplified) */
+        .corner-cut {
+            clip-path: polygon(
+                0 0, 
+                100% 0, 
+                100% calc(100% - 10px), 
+                calc(100% - 10px) 100%, 
+                0 100%
+            );
+        }
+
+        .cyber-btn {
+            background: transparent;
+            border: 1px solid var(--neon-cyan);
+            color: var(--neon-cyan);
+            font-family: 'Orbitron', sans-serif;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            transition: all 0.2s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .cyber-btn:hover {
+            background: rgba(0, 245, 255, 0.1);
+            box-shadow: 0 0 15px var(--neon-cyan);
+            transform: translateY(-2px);
+            text-shadow: 0 0 8px var(--neon-cyan);
+        }
+
+        .cyber-btn:active {
+            transform: scale(0.98);
+        }
+
+        .cyber-btn-secondary {
+            border-color: var(--neon-magenta);
+            color: var(--neon-magenta);
+        }
+
+        .cyber-btn-secondary:hover {
+            background: rgba(255, 46, 209, 0.1);
+            box-shadow: 0 0 15px var(--neon-magenta);
+            text-shadow: 0 0 8px var(--neon-magenta);
+        }
+
+        /* Form Inputs */
+        .cyber-select {
+            background-color: var(--bg-dark);
+            border: 1px solid var(--border-dark);
+            color: var(--neon-cyan);
+            font-family: 'Roboto Mono', monospace;
+        }
+        .cyber-select:focus {
+            border-color: var(--neon-cyan);
+            outline: none;
+            box-shadow: 0 0 8px rgba(0, 245, 255, 0.3);
+        }
+
+        /* Glitch Animation for Game Over */
+        @keyframes glitch {
+            0% { transform: translate(0); }
+            20% { transform: translate(-2px, 2px); }
+            40% { transform: translate(-2px, -2px); }
+            60% { transform: translate(2px, 2px); }
+            80% { transform: translate(2px, -2px); }
+            100% { transform: translate(0); }
+        }
+        .glitch-text {
+            animation: glitch 0.5s infinite;
+            color: var(--status-success);
+            text-shadow: 2px 2px var(--neon-magenta), -2px -2px var(--neon-cyan);
+        }
+
     </style>
 </head>
-<body class="min-h-screen flex flex-col items-center p-4 text-slate-800">
+<body class="min-h-screen flex flex-col items-center p-4">
+
+    <!-- CRT Overlay -->
+    <div class="scanlines"></div>
 
     <!-- Header / Controls -->
-    <header class="w-full max-w-2xl flex flex-col gap-4 mb-6">
-        <div class="flex justify-between items-center">
-            <h1 class="text-3xl font-bold text-indigo-600 tracking-wide">Memory Match</h1>
-            <button onclick="toggleSettings()" class="p-2 rounded-full hover:bg-slate-200 transition md:hidden">
-                <!-- Simple Gear Icon SVG -->
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <header class="w-full max-w-2xl flex flex-col gap-6 mb-8 z-10">
+        <div class="flex justify-between items-end border-b border-gray-800 pb-2">
+            <div>
+                <h1 class="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-[--neon-cyan] to-[--neon-purple] glow-text-cyan tracking-widest">
+                    NEON MATCH
+                </h1>
+                <p class="text-xs text-[--text-muted] tracking-widest mt-1">SYSTEM V.2.0 // READY</p>
+            </div>
+            <button onclick="toggleSettings()" class="md:hidden text-[--neon-cyan] hover:text-white transition p-2">
+                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
             </button>
         </div>
 
-        <!-- Stats Bar -->
-        <div class="flex justify-between bg-white p-4 rounded-xl shadow-sm border border-slate-100">
-            <div class="text-center">
-                <p class="text-xs text-slate-500 uppercase font-bold">Time</p>
-                <p id="timer" class="text-xl font-mono text-indigo-600 font-bold">00:00</p>
+        <!-- HUD Panel -->
+        <div class="cyber-panel p-4 flex justify-between items-center corner-cut">
+            <div class="text-center w-1/3 border-r border-[--border-dark]">
+                <p class="text-[10px] text-[--neon-magenta] mb-1 hud-label">UPTIME</p>
+                <p id="timer" class="text-xl text-[--text-primary] font-mono tracking-widest">00:00</p>
             </div>
-            <div class="text-center">
-                <p class="text-xs text-slate-500 uppercase font-bold">Moves</p>
-                <p id="moves" class="text-xl font-mono text-indigo-600 font-bold">0</p>
+            <div class="text-center w-1/3 border-r border-[--border-dark]">
+                <p class="text-[10px] text-[--neon-magenta] mb-1 hud-label">CYCLES</p>
+                <p id="moves" class="text-xl text-[--text-primary] font-mono tracking-widest">0</p>
             </div>
-            <div class="text-center">
-                <button onclick="restartGame()" class="px-4 py-1 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 rounded-lg font-semibold transition text-sm h-full flex items-center gap-1">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div class="text-center w-1/3 flex justify-center">
+                <button onclick="restartGame()" class="cyber-btn px-4 py-2 text-xs font-bold rounded-sm flex items-center gap-2">
+                    <span>REBOOT</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                     </svg>
-                    Restart
                 </button>
             </div>
         </div>
 
-        <!-- Settings Panel (Collapsible on mobile, visible on desktop) -->
-        <div id="settings-panel" class="hidden md:flex flex-wrap gap-4 items-center bg-white p-3 rounded-xl shadow-sm border border-slate-100 mt-2">
+        <!-- Settings Panel -->
+        <div id="settings-panel" class="hidden md:flex flex-wrap gap-4 items-center bg-[--panel-dark] p-3 border-t border-[--border-dark]">
             <div class="flex items-center gap-2">
-                <span class="text-sm font-semibold text-slate-600">Difficulty:</span>
-                <select id="difficulty" onchange="restartGame()" class="text-sm p-2 rounded-lg bg-slate-50 border-slate-200 border focus:ring-2 focus:ring-indigo-500 outline-none">
-                    <option value="easy">Easy (4x3)</option>
-                    <option value="medium" selected>Medium (4x4)</option>
-                    <option value="hard">Hard (5x4)</option>
-                    <option value="expert">Expert (6x4)</option>
+                <span class="text-xs font-bold text-[--text-muted] font-mono">SECTOR:</span>
+                <select id="difficulty" onchange="restartGame()" class="cyber-select text-xs p-2 rounded-sm outline-none cursor-pointer">
+                    <option value="easy">SECTOR 1 (4x3)</option>
+                    <option value="medium" selected>SECTOR 2 (4x4)</option>
+                    <option value="hard">SECTOR 3 (5x4)</option>
+                    <option value="expert">SECTOR 4 (6x4)</option>
                 </select>
             </div>
             <div class="flex items-center gap-2">
-                <span class="text-sm font-semibold text-slate-600">Theme:</span>
-                <select id="theme" onchange="restartGame()" class="text-sm p-2 rounded-lg bg-slate-50 border-slate-200 border focus:ring-2 focus:ring-indigo-500 outline-none">
-                    <option value="animals">Animals 🐶</option>
-                    <option value="food">Food 🍔</option>
-                    <option value="travel">Travel 🚀</option>
-                    <option value="spooky">Spooky 👻</option>
+                <span class="text-xs font-bold text-[--text-muted] font-mono">DATA SET:</span>
+                <select id="theme" onchange="restartGame()" class="cyber-select text-xs p-2 rounded-sm outline-none cursor-pointer">
+                    <option value="animals">BIO-FAUNA 🐶</option>
+                    <option value="food">RATIONS 🍔</option>
+                    <option value="travel">TRANSPORT 🚀</option>
+                    <option value="spooky">XENOS 👽</option>
                 </select>
             </div>
         </div>
     </header>
 
     <!-- Game Board -->
-    <main id="game-container" class="w-full flex justify-center perspective-1000">
+    <main id="game-container" class="w-full flex justify-center perspective-1000 z-10 mb-8">
         <div id="game-grid">
             <!-- Cards will be injected here -->
         </div>
     </main>
 
     <!-- Win Modal -->
-    <div id="win-modal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-40 hidden backdrop-blur-sm opacity-0 transition-opacity duration-300">
-        <div class="bg-white p-8 rounded-2xl shadow-2xl max-w-sm w-full mx-4 text-center transform scale-95 transition-transform duration-300" id="modal-content">
-            <div class="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">
-                🏆
-            </div>
-            <h2 class="text-2xl font-bold text-slate-800 mb-2">You Won!</h2>
-            <p class="text-slate-600 mb-6">Great memory! Here is how you did:</p>
+    <div id="win-modal" class="fixed inset-0 bg-black/80 flex items-center justify-center z-50 hidden backdrop-blur-md opacity-0 transition-opacity duration-300">
+        <div class="cyber-panel p-8 w-full max-w-sm mx-4 text-center transform scale-95 transition-transform duration-300 relative border-[--status-success]" style="box-shadow: 0 0 30px rgba(0,255,156,0.1);" id="modal-content">
+            <!-- Decorative corner markers -->
+            <div class="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-[--status-success]"></div>
+            <div class="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-[--status-success]"></div>
+            <div class="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-[--status-success]"></div>
+            <div class="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-[--status-success]"></div>
+
+            <h2 class="text-3xl font-bold mb-2 glitch-text tracking-widest font-display">ACCESS GRANTED</h2>
+            <p class="text-[--text-muted] mb-8 text-sm font-mono">SYSTEM INTEGRITY RESTORED</p>
             
-            <div class="grid grid-cols-2 gap-4 mb-6">
-                <div class="bg-slate-50 p-3 rounded-lg">
-                    <p class="text-xs text-slate-500 uppercase">Time</p>
-                    <p id="final-time" class="text-lg font-bold text-slate-800">00:00</p>
+            <div class="grid grid-cols-2 gap-4 mb-8">
+                <div class="bg-[--bg-dark] p-3 border border-[--border-dark]">
+                    <p class="text-[10px] text-[--neon-cyan] mb-1 hud-label">FINAL UPTIME</p>
+                    <p id="final-time" class="text-lg font-bold text-white font-mono">00:00</p>
                 </div>
-                <div class="bg-slate-50 p-3 rounded-lg">
-                    <p class="text-xs text-slate-500 uppercase">Moves</p>
-                    <p id="final-moves" class="text-lg font-bold text-slate-800">0</p>
+                <div class="bg-[--bg-dark] p-3 border border-[--border-dark]">
+                    <p class="text-[10px] text-[--neon-cyan] mb-1 hud-label">OPS COUNT</p>
+                    <p id="final-moves" class="text-lg font-bold text-white font-mono">0</p>
                 </div>
             </div>
 
-            <button onclick="closeModalAndRestart()" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold transition shadow-lg shadow-indigo-200">
-                Play Again
+            <button onclick="closeModalAndRestart()" class="w-full py-4 cyber-btn cyber-btn-secondary text-sm font-bold tracking-widest hover:text-white">
+                JACK IN AGAIN
+            </button>
+            <button onclick="window.location.href='index.html'" class="w-full py-4 cyber-btn cyber-btn-secondary text-sm font-bold tracking-widest hover:text-white">
+                RETURN TO MAINFRAME
             </button>
         </div>
     </div>
@@ -205,10 +350,10 @@
         };
 
         const difficulties = {
-            easy: { rows: 4, cols: 3 },    // 12 cards (6 pairs)
-            medium: { rows: 4, cols: 4 },  // 16 cards (8 pairs)
-            hard: { rows: 5, cols: 4 },    // 20 cards (10 pairs)
-            expert: { rows: 6, cols: 4 }   // 24 cards (12 pairs)
+            easy: { rows: 4, cols: 3 },    // 12 cards
+            medium: { rows: 4, cols: 4 },  // 16 cards
+            hard: { rows: 5, cols: 4 },    // 20 cards
+            expert: { rows: 6, cols: 4 }   // 24 cards
         };
 
         /* --- STATE VARIABLES --- */
@@ -289,16 +434,12 @@
             deck.forEach(icon => {
                 const card = document.createElement('div');
                 card.classList.add('memory-card');
-                // Calculate height based on width to keep aspect ratio roughly square-ish or playing card shape
-                // We use Tailwind classes for height in the inner faces, but the container needs sizing context
-                // Let's set a fixed aspect ratio via CSS or just let flex handle it.
-                // Using aspect-ratio css property is best.
                 card.style.aspectRatio = "3/4"; 
                 
                 card.dataset.icon = icon;
 
                 card.innerHTML = `
-                    <div class="front-face text-4xl select-none">${icon}</div>
+                    <div class="front-face select-none">${icon}</div>
                     <div class="back-face"></div>
                 `;
                 
@@ -318,6 +459,9 @@
         function flipCard() {
             if (lockBoard) return;
             if (this === firstCard) return;
+
+            // Play sound effect placeholder (commented out as no external assets allowed, but logic would go here)
+            // playSound('flip');
 
             this.classList.add('flip');
 
@@ -430,7 +574,7 @@
             }, 300);
         }
 
-        /* --- CONFETTI (Simple Implementation) --- */
+        /* --- CONFETTI (NEON UPDATE) --- */
         const canvas = document.getElementById('confetti-canvas');
         const ctx = canvas.getContext('2d');
         let confetti = [];
@@ -444,16 +588,17 @@
 
         function fireConfetti() {
             confetti = [];
-            const colors = ['#6366f1', '#a855f7', '#ec4899', '#f43f5e', '#3b82f6'];
+            // Neon Palette for confetti
+            const colors = ['#00F5FF', '#FF2ED1', '#7C3AED', '#00FF9C', '#FFFFFF'];
             
             for (let i = 0; i < 150; i++) {
                 confetti.push({
                     x: canvas.width / 2,
                     y: canvas.height / 2,
-                    w: Math.random() * 10 + 5,
-                    h: Math.random() * 10 + 5,
-                    dx: (Math.random() - 0.5) * 10,
-                    dy: (Math.random() - 0.5) * 10 - 5,
+                    w: Math.random() * 8 + 4, // Square digital bits
+                    h: Math.random() * 8 + 4,
+                    dx: (Math.random() - 0.5) * 12,
+                    dy: (Math.random() - 0.5) * 12 - 5,
                     color: colors[Math.floor(Math.random() * colors.length)],
                     angle: Math.random() * 360,
                     spin: Math.random() < 0.5 ? 1 : -1
@@ -471,13 +616,19 @@
             confetti.forEach((p, index) => {
                 p.y += p.dy;
                 p.x += p.dx;
-                p.dy += 0.1; // gravity
-                p.angle += p.spin * 2;
+                p.dy += 0.15; // heavier gravity
+                p.angle += p.spin * 5; // faster spin
 
                 ctx.save();
                 ctx.translate(p.x, p.y);
                 ctx.rotate(p.angle * Math.PI / 180);
+                
+                // Add glow to confetti
+                ctx.shadowBlur = 5;
+                ctx.shadowColor = p.color;
+                
                 ctx.fillStyle = p.color;
+                // Draw digital squares instead of rectangles
                 ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
                 ctx.restore();
 

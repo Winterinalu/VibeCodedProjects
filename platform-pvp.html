@@ -3,18 +3,61 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PvP Platformer Arena</title>
+    <title>NEON CIRCUIT: ARENA</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+        /* Typography: Orbitron for UI, Roboto Mono for body */
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Roboto+Mono:wght@400;700&display=swap');
         
+        :root {
+            --bg-color: #0B0F1A;
+            --panel-color: #11162A;
+            --border-color: #1B2140;
+            --neon-cyan: #00F5FF;
+            --neon-magenta: #FF2ED1;
+            --neon-purple: #7C3AED;
+            --text-primary: #E5E7EB;
+            --text-muted: #9CA3AF;
+        }
+
         body {
-            background-color: #0f1020;
-            color: white;
-            font-family: 'Press Start 2P', monospace;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            font-family: 'Roboto Mono', monospace;
             overflow: hidden;
             touch-action: none;
             margin: 0;
+        }
+
+        /* Scanline Overlay */
+        .scanlines {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: linear-gradient(
+                to bottom,
+                rgba(255,255,255,0),
+                rgba(255,255,255,0) 50%,
+                rgba(0,0,0,0.2) 50%,
+                rgba(0,0,0,0.2)
+            );
+            background-size: 100% 4px;
+            pointer-events: none;
+            z-index: 100;
+            opacity: 0.6;
+        }
+
+        /* CRT Flicker Animation */
+        @keyframes flicker {
+            0% { opacity: 0.97; }
+            5% { opacity: 0.95; }
+            10% { opacity: 0.9; }
+            15% { opacity: 0.95; }
+            20% { opacity: 0.98; }
+            50% { opacity: 0.95; }
+            100% { opacity: 0.98; }
         }
 
         #game-container {
@@ -24,17 +67,20 @@
             align-items: center;
             height: 100vh;
             flex-direction: column;
+            animation: flicker 4s infinite;
         }
 
         canvas {
-            background: linear-gradient(to bottom, #1a1a2e, #16213e);
-            box-shadow: 0 0 30px rgba(0,0,0,0.7);
-            border: 4px solid #2d3748;
+            background: radial-gradient(circle at center, #16213e 0%, #0B0F1A 100%);
+            box-shadow: 0 0 20px rgba(0, 245, 255, 0.1), 0 0 40px rgba(255, 46, 209, 0.1);
+            border: 2px solid var(--border-color);
+            border-top: 2px solid var(--neon-cyan);
+            border-bottom: 2px solid var(--neon-magenta);
         }
 
         .ui-layer {
             position: absolute;
-            top: 20px;
+            top: 30px;
             left: 0;
             width: 100%;
             padding: 0 50px;
@@ -44,32 +90,54 @@
             z-index: 5;
         }
 
+        .player-label {
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 700;
+            font-size: 1.2rem;
+            letter-spacing: 0.08em;
+            margin-bottom: 8px;
+            text-shadow: 0 0 10px currentColor;
+        }
+
         .health-bar-container {
-            width: 40%;
-            height: 30px;
-            background-color: #2d3748;
-            border: 3px solid #1a202c;
+            width: 100%;
+            height: 24px;
+            background-color: var(--panel-color);
+            border: 1px solid var(--border-color);
             position: relative;
-            transform: skewX(-15deg);
+            transform: skewX(-20deg);
             overflow: hidden;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
         }
 
         .health-bar {
             height: 100%;
             transition: width 0.1s linear;
+            box-shadow: inset 0 0 10px rgba(255,255,255,0.3);
         }
 
-        .p1-health { background: linear-gradient(90deg, #3182ce, #63b3ed); width: 100%; }
-        .p2-health { background: linear-gradient(90deg, #fc8181, #e53e3e); width: 100%; float: right; }
+        .p1-health { 
+            background: linear-gradient(90deg, var(--neon-cyan), #0099ff); 
+            box-shadow: 0 0 15px var(--neon-cyan);
+        }
+        .p2-health { 
+            background: linear-gradient(90deg, #ff0055, var(--neon-magenta)); 
+            box-shadow: 0 0 15px var(--neon-magenta);
+            float: right; 
+        }
 
         .controls-hint {
-            margin-top: 15px;
+            margin-top: 20px;
             font-size: 12px;
-            color: #718096;
+            color: var(--text-muted);
             text-align: center;
-            font-family: sans-serif;
+            font-family: 'Roboto Mono', monospace;
             text-transform: uppercase;
             letter-spacing: 1px;
+            border-top: 1px solid var(--border-color);
+            padding-top: 15px;
+            width: 100%;
+            max-width: 1024px;
         }
 
         /* Screens: Start, Result */
@@ -83,67 +151,114 @@
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            background: rgba(15, 16, 32, 0.95);
+            background: rgba(11, 15, 26, 0.92);
             z-index: 10;
-            backdrop-filter: blur(4px);
+            backdrop-filter: blur(8px);
         }
 
         #result-screen { display: none; }
-        #start-screen { display: flex; } /* Visible by default */
+        #start-screen { display: flex; }
+
+        h1.title-text {
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 900;
+            font-size: 48px;
+            margin-bottom: 40px;
+            color: white;
+            text-shadow: 
+                2px 2px 0px var(--neon-cyan),
+                -2px -2px 0px var(--neon-magenta);
+            letter-spacing: 0.15em;
+        }
 
         .btn {
-            background: #2d3748;
-            border: 2px solid #4a5568;
-            color: #fff;
-            padding: 15px 30px;
-            margin: 10px;
-            font-family: 'Press Start 2P', cursive;
-            font-size: 16px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--neon-cyan);
+            color: var(--neon-cyan);
+            padding: 15px 40px;
+            margin: 15px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 18px;
+            font-weight: 700;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.2s ease-out;
             text-transform: uppercase;
+            letter-spacing: 0.1em;
+            position: relative;
+            clip-path: polygon(10% 0, 100% 0, 100% 80%, 90% 100%, 0 100%, 0 20%);
         }
 
         .btn:hover {
-            background: #4a5568;
-            transform: scale(1.05);
-            border-color: #63b3ed;
+            background: rgba(0, 245, 255, 0.1);
+            box-shadow: 0 0 20px rgba(0, 245, 255, 0.4);
+            transform: translateY(-2px);
+            text-shadow: 0 0 8px var(--neon-cyan);
+        }
+
+        .btn.secondary {
+            border-color: var(--neon-magenta);
+            color: var(--neon-magenta);
+        }
+        
+        .btn.secondary:hover {
+            background: rgba(255, 46, 209, 0.1);
+            box-shadow: 0 0 20px rgba(255, 46, 209, 0.4);
+            text-shadow: 0 0 8px var(--neon-magenta);
         }
 
         .key-badge {
-            background: #2d3748;
+            background: var(--panel-color);
             padding: 4px 8px;
-            border-radius: 4px;
-            border-bottom: 2px solid #1a202c;
-            font-weight: bold;
-            color: #e2e8f0;
-            font-size: 0.9em;
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.8em;
+            box-shadow: 0 0 5px rgba(0,0,0,0.5);
         }
         
         .timer-box {
-            background: #2d3748;
-            padding: 10px 15px;
-            border: 2px solid #1a202c;
-            transform: skewX(-15deg);
+            background: var(--panel-color);
+            padding: 10px 20px;
+            border: 1px solid var(--border-color);
+            border-left: 4px solid var(--neon-cyan);
+            border-right: 4px solid var(--neon-magenta);
+            transform: skewX(-20deg);
+            box-shadow: 0 0 15px rgba(0,0,0,0.5);
         }
         
         .timer-text {
-            transform: skewX(15deg);
-            font-size: 24px;
-            color: #fbbf24;
+            transform: skewX(20deg);
+            font-family: 'Orbitron', sans-serif;
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--text-primary);
+            text-shadow: 0 0 5px white;
+        }
+
+        .unit-container {
+            width: 45%;
+        }
+        
+        .hud-text {
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-top: 4px;
         }
     </style>
 </head>
 <body>
 
+<div class="scanlines"></div>
+
 <div id="game-container">
     <div class="ui-layer">
         <!-- Player 1 UI -->
-        <div style="width: 45%;">
-            <div style="margin-bottom: 8px; color: #63b3ed; text-shadow: 2px 2px #000;">PLAYER 1</div>
+        <div class="unit-container">
+            <div class="player-label" style="color: var(--neon-cyan);">UNIT ALPHA</div>
             <div class="health-bar-container">
                 <div id="p1-health" class="health-bar p1-health"></div>
             </div>
+            <div class="hud-text">CORE INTEGRITY</div>
         </div>
 
         <!-- Timer / VS -->
@@ -152,49 +267,48 @@
         </div>
 
         <!-- Player 2 UI -->
-        <div style="width: 45%; text-align: right;">
-            <div style="margin-bottom: 8px; color: #fc8181; text-shadow: 2px 2px #000;">PLAYER 2</div>
+        <div class="unit-container" style="text-align: right;">
+            <div class="player-label" style="color: var(--neon-magenta);">UNIT OMEGA</div>
             <div class="health-bar-container">
                 <div id="p2-health" class="health-bar p2-health"></div>
             </div>
+            <div class="hud-text" style="text-align: right;">CORE INTEGRITY</div>
         </div>
     </div>
 
     <canvas id="gameCanvas"></canvas>
     
     <div class="controls-hint">
-        <div class="flex gap-12 justify-center mt-2">
-            <div class="text-blue-400">
-                <span class="font-bold text-white mb-2 block">BLUE</span> 
-                <span class="key-badge">WASD</span> Move <br><br>
-                <span class="key-badge">F</span> Attack &nbsp;
-                <span class="key-badge">G</span> Block
+        <div class="flex gap-16 justify-center mt-2">
+            <div style="color: var(--neon-cyan);">
+                <span style="font-family: 'Orbitron'; font-weight: bold; margin-bottom: 5px; display: block; text-shadow: 0 0 5px var(--neon-cyan);">UNIT ALPHA</span> 
+                <span class="key-badge">WASD</span> NAVIGATE <br><br>
+                <span class="key-badge">F</span> OFFENSE &nbsp;
+                <span class="key-badge">G</span> DEFENSE
             </div>
-            <div class="text-red-400">
-                <span class="font-bold text-white mb-2 block">RED (PvP)</span> 
-                <span class="key-badge">ARROWS</span> Move <br><br>
-                <span class="key-badge">NUM 0</span> Attack &nbsp;
-                <span class="key-badge">NUM .</span> Block
+            <div style="color: var(--neon-magenta);">
+                <span style="font-family: 'Orbitron'; font-weight: bold; margin-bottom: 5px; display: block; text-shadow: 0 0 5px var(--neon-magenta);">UNIT OMEGA</span> 
+                <span class="key-badge">ARROWS</span> NAVIGATE <br><br>
+                <span class="key-badge">NUM 0</span> OFFENSE &nbsp;
+                <span class="key-badge">NUM .</span> DEFENSE
             </div>
         </div>
     </div>
 
     <!-- START SCREEN -->
     <div id="start-screen" class="overlay-screen">
-        <h1 style="font-size: 40px; margin-bottom: 40px; text-shadow: 4px 4px #000; color: #63b3ed;">DUEL ARENA</h1>
-        <div>
-            <button class="btn" onclick="startGame('pvp')">PvP (2 Players)</button>
-            <button class="btn" onclick="startGame('ai')">PvE (vs AI)</button>
-            <button class="btn" onclick="location.href='index.html'">Back</button>
-        </div>
+        <h1 class="title-text">NEON CIRCUIT</h1>
+        <button class="btn" onclick="startGame('pvp')">JACK IN: PVP</button>
+        <button class="btn secondary" onclick="startGame('ai')">SIMULATION (AI)</button>
     </div>
 
     <!-- RESULT SCREEN -->
     <div id="result-screen" class="overlay-screen">
-        <h1 id="result-text" style="font-size: 48px; margin-bottom: 30px; text-shadow: 4px 4px #000;">PLAYER 1 WINS</h1>
+        <h1 id="result-text" class="title-text">SEQUENCE COMPLETE</h1>
         <div style="display: flex; gap: 20px;">
-            <button class="btn" onclick="resetMatch()">Rematch</button>
-            <button class="btn" onclick="showMainMenu()">Menu</button>
+            <button class="btn" onclick="resetMatch()">REBOOT</button>
+            <button class="btn secondary" onclick="showMainMenu()">SYSTEM MENU</button>
+            <button class="btn secondary" onclick="window.location.href='index.html'">RETURN TO MAINFRAME</button>
         </div>
     </div>
 </div>
@@ -258,6 +372,8 @@
         draw() {
             c.save();
             c.globalAlpha = this.life;
+            c.shadowBlur = 10;
+            c.shadowColor = this.color;
             c.fillStyle = this.color;
             c.beginPath();
             c.arc(this.position.x, this.position.y, this.radius, 0, Math.PI * 2);
@@ -274,10 +390,11 @@
     }
 
     class Player {
-        constructor({ position, velocity, color, offset = {x: 0, y: 0}, facingRight = true, weaponColor = '#CBD5E0' }) {
+        constructor({ position, velocity, color, glowColor, offset = {x: 0, y: 0}, facingRight = true, weaponColor = '#E5E7EB' }) {
             this.position = position;
             this.velocity = velocity;
             this.color = color;
+            this.glowColor = glowColor;
             this.weaponColor = weaponColor;
             
             // Hitbox dimensions
@@ -343,45 +460,70 @@
                 bodyY = 0; legAngleL = 0; legAngleR = 0;
             }
 
-            const skinColor = '#FBD38D';
+            // Neon Glow Effect for Player
+            c.shadowBlur = 20;
+            c.shadowColor = this.glowColor;
+
+            const skinColor = '#1F2937'; // Dark skin for robot look
             const clothColor = this.color;
 
             // Back Leg
             c.save(); c.translate(0, bodyY); c.rotate(legAngleR);
-            c.fillStyle = '#1A202C'; c.fillRect(-8, 0, 16, 60); c.restore();
+            c.fillStyle = '#111827'; c.fillRect(-8, 0, 16, 60); c.restore();
 
             // Body
             c.fillStyle = clothColor; c.fillRect(-15, bodyY - 50, 30, 50);
+            // Core Light
+            c.fillStyle = 'white'; c.fillRect(-5, bodyY - 35, 10, 10);
 
             // Head
             c.fillStyle = skinColor; c.fillRect(-12, bodyY - 74, 24, 24); 
-            c.fillStyle = clothColor; c.fillRect(-12, bodyY - 74, 24, 8); 
-            c.fillStyle = 'white'; c.fillRect(4, bodyY - 66, 6, 6);
-            
+            c.fillStyle = clothColor; c.fillRect(-12, bodyY - 74, 24, 8); // Visor top
+            // Digital Eye
+            c.fillStyle = this.glowColor; 
+            c.fillRect(4, bodyY - 66, 10, 4); // Visor eye
+            c.shadowBlur = 10; c.shadowColor = this.glowColor; // Eye Glow
+
             // Front Leg
             c.save(); c.translate(0, bodyY); c.rotate(legAngleL);
-            c.fillStyle = '#2D3748'; c.fillRect(-8, 0, 16, 60); c.restore();
+            c.fillStyle = '#1F2937'; c.fillRect(-8, 0, 16, 60); c.restore();
 
             // Arm & Weapon
             c.save(); c.translate(0, bodyY - 40); c.rotate(armAngle);
+            c.shadowBlur = 0; // Reset shadow for arm details
             c.fillStyle = skinColor; c.fillRect(-6, 0, 12, 35);
             c.translate(0, 30); c.rotate(weaponAngle);
-            c.fillStyle = '#4A5568'; c.fillRect(-3, -5, 6, 15);
-            c.fillStyle = '#FFD700'; c.beginPath(); c.arc(0, 10, 4, 0, Math.PI*2); c.fill();
-            c.fillStyle = this.weaponColor;
-            if (this.isBlocking) { c.shadowColor = 'gold'; c.shadowBlur = 15; }
-            c.fillRect(-4, -60, 8, 60); c.shadowBlur = 0;
             
+            // Handle
+            c.fillStyle = '#374151'; c.fillRect(-3, -5, 6, 15);
+            c.fillStyle = this.glowColor; c.beginPath(); c.arc(0, 10, 4, 0, Math.PI*2); c.fill();
+
+            // Blade (Laser)
+            c.fillStyle = 'white'; // Inner white
+            c.shadowBlur = 15; c.shadowColor = this.glowColor; // Colored Glow
+            
+            if (this.isBlocking) { 
+                c.shadowBlur = 25; 
+                c.fillStyle = this.glowColor;
+            }
+            c.fillRect(-4, -60, 8, 60); 
+            c.shadowBlur = 0;
+            
+            // Attack trail
             if (this.isAttacking) {
-                c.globalAlpha = 0.5; c.fillStyle = 'white';
-                c.beginPath(); c.arc(0, -30, 60, Math.PI, 1.5 * Math.PI); c.fill();
+                c.globalAlpha = 0.5; 
+                c.fillStyle = this.glowColor;
+                c.beginPath(); c.arc(0, -30, 70, Math.PI, 1.5 * Math.PI); c.fill();
                 c.globalAlpha = 1.0;
             }
             c.restore(); 
 
+            // Shield Effect
             if (this.isBlocking) {
-                c.strokeStyle = '#F6E05E'; c.lineWidth = 3;
-                c.beginPath(); c.arc(0, bodyY - 25, 45, -Math.PI/3, Math.PI/3); c.stroke();
+                c.strokeStyle = this.glowColor; c.lineWidth = 3;
+                c.shadowBlur = 20; c.shadowColor = this.glowColor;
+                c.beginPath(); c.arc(0, bodyY - 25, 50, -Math.PI/3, Math.PI/3); c.stroke();
+                c.shadowBlur = 0;
             }
             c.restore(); 
         }
@@ -424,11 +566,12 @@
         }
 
         takeHit(damage) {
-            for(let i=0; i<5; i++) {
+            // Sparks
+            for(let i=0; i<8; i++) {
                 particles.push(new Particle({
                     position: { x: this.position.x + this.width/2, y: this.position.y + this.height/2 },
-                    velocity: { x: (Math.random() - 0.5) * 6, y: (Math.random() - 0.5) * 6 },
-                    color: this.isBlocking ? '#F6E05E' : '#C53030'
+                    velocity: { x: (Math.random() - 0.5) * 10, y: (Math.random() - 0.5) * 10 },
+                    color: this.isBlocking ? '#FFFFFF' : this.glowColor
                 }));
             }
             if (this.isBlocking) { this.health -= damage * 0.1; } 
@@ -437,68 +580,48 @@
         }
     }
 
-    // Initialization
+    // Initialization with NEON Colors
+    const COLOR_P1 = '#00F5FF'; // Neon Cyan
+    const COLOR_P2 = '#FF2ED1'; // Neon Magenta
+
     let player1 = new Player({
-        position: { x: 100, y: 0 }, velocity: { x: 0, y: 0 }, color: '#3182ce', weaponColor: '#A0AEC0', facingRight: true
+        position: { x: 100, y: 0 }, velocity: { x: 0, y: 0 }, color: '#164E63', glowColor: COLOR_P1, facingRight: true
     });
     let player2 = new Player({
-        position: { x: 800, y: 0 }, velocity: { x: 0, y: 0 }, color: '#e53e3e', weaponColor: '#FC8181', facingRight: false
+        position: { x: 800, y: 0 }, velocity: { x: 0, y: 0 }, color: '#701A75', glowColor: COLOR_P2, facingRight: false
     });
 
     // --- AI LOGIC ---
     function updateAI() {
         if (player2.dead || !gameRunning) return;
 
-        // Calculate distances
         const dx = player1.position.x - player2.position.x;
         const distance = Math.abs(dx);
         const attackRange = 100;
         
-        // Reset Keys
         aiKeys.ArrowLeft.pressed = false;
         aiKeys.ArrowRight.pressed = false;
         aiKeys.ArrowUp.pressed = false;
 
-        // 1. Defend Logic
-        // If P1 is close and attacking, high chance to block
         if (player1.isAttacking && distance < 150 && Math.random() > 0.1) {
              player2.block(true);
-             return; // Don't move while blocking
+             return;
         } else {
              player2.block(false);
         }
 
-        // 2. Attack Logic
         if (distance < attackRange && !player2.attackCooldown) {
-            // Randomly attack when in range
-            if (Math.random() > 0.05) {
-                player2.attack();
-            }
+            if (Math.random() > 0.05) player2.attack();
         }
 
-        // 3. Movement Logic
-        // Try to maintain a specific fighting distance
         if (distance > 80) {
-            if (dx > 0) { // P1 is to the right
-                aiKeys.ArrowRight.pressed = true;
-                aiLastKey = 'ArrowRight';
-            } else { // P1 is to the left
-                aiKeys.ArrowLeft.pressed = true;
-                aiLastKey = 'ArrowLeft';
-            }
+            if (dx > 0) { aiKeys.ArrowRight.pressed = true; aiLastKey = 'ArrowRight'; } 
+            else { aiKeys.ArrowLeft.pressed = true; aiLastKey = 'ArrowLeft'; }
         } else if (distance < 40) {
-             // Too close, back up slightly
-             if (dx > 0) {
-                aiKeys.ArrowLeft.pressed = true;
-                aiLastKey = 'ArrowLeft';
-             } else {
-                aiKeys.ArrowRight.pressed = true;
-                aiLastKey = 'ArrowRight';
-             }
+             if (dx > 0) { aiKeys.ArrowLeft.pressed = true; aiLastKey = 'ArrowLeft'; } 
+             else { aiKeys.ArrowRight.pressed = true; aiLastKey = 'ArrowRight'; }
         }
 
-        // 4. Jump Logic
-        // Jump if P1 is jumping to meet them in air, or randomly to confuse
         if ((player1.position.y < player2.position.y - 50 || Math.random() < 0.01) && !player2.isJumping) {
             player2.velocity.y = JUMP_FORCE;
             player2.isJumping = true;
@@ -520,14 +643,17 @@
         resultScreen.style.display = 'flex';
         
         if (player1.health === player2.health) {
-            resultText.innerText = 'TIE';
+            resultText.innerText = 'DRAW';
             resultText.style.color = 'white';
+            resultText.style.textShadow = '0 0 10px white';
         } else if (player1.health > player2.health) {
-            resultText.innerText = 'PLAYER 1 WINS';
-            resultText.style.color = '#63b3ed';
+            resultText.innerText = 'UNIT ALPHA VICTORIOUS';
+            resultText.style.color = COLOR_P1;
+            resultText.style.textShadow = `0 0 20px ${COLOR_P1}`;
         } else {
-            resultText.innerText = 'PLAYER 2 WINS';
-            resultText.style.color = '#fc8181';
+            resultText.innerText = 'UNIT OMEGA VICTORIOUS';
+            resultText.style.color = COLOR_P2;
+            resultText.style.textShadow = `0 0 20px ${COLOR_P2}`;
         }
     }
 
@@ -543,22 +669,54 @@
     }
 
     function drawBackground() {
-        c.fillStyle = '#2d3748';
+        // Floor
+        c.fillStyle = '#0f172a';
         c.fillRect(0, canvas.height - GROUND_HEIGHT, canvas.width, GROUND_HEIGHT);
-        c.strokeStyle = '#4a5568';
-        c.lineWidth = 2;
-        for (let i = 0; i < canvas.width; i += 100) {
-            c.beginPath(); c.moveTo(i, canvas.height - GROUND_HEIGHT); c.lineTo(i - 50, canvas.height); c.stroke();
+        
+        // Neon Grid Floor
+        c.save();
+        c.strokeStyle = 'rgba(0, 245, 255, 0.2)';
+        c.lineWidth = 1;
+        c.shadowBlur = 5;
+        c.shadowColor = 'cyan';
+        
+        // Vertical lines (Perspective)
+        const vanishingPoint = { x: canvas.width / 2, y: -200 };
+        for (let i = -500; i < canvas.width + 500; i += 100) {
+            c.beginPath();
+            c.moveTo(i, canvas.height);
+            c.lineTo((i + vanishingPoint.x) / 2, canvas.height - GROUND_HEIGHT);
+            c.stroke();
         }
-        c.fillStyle = '#232938';
-        c.fillRect(200, 100, 100, canvas.height);
-        c.fillRect(724, 100, 100, canvas.height);
+
+        // Horizontal lines
+        for (let y = canvas.height - GROUND_HEIGHT; y < canvas.height; y += 20) {
+            c.beginPath();
+            c.moveTo(0, y);
+            c.lineTo(canvas.width, y);
+            c.stroke();
+        }
+        c.restore();
+
+        // Background City Silhouette
+        c.fillStyle = '#111827';
+        c.fillRect(100, canvas.height - GROUND_HEIGHT - 200, 80, 200);
+        c.fillRect(200, canvas.height - GROUND_HEIGHT - 300, 120, 300);
+        c.fillRect(600, canvas.height - GROUND_HEIGHT - 250, 100, 250);
+        c.fillRect(850, canvas.height - GROUND_HEIGHT - 150, 60, 150);
+        
+        // Windows
+        c.fillStyle = 'rgba(255, 255, 0, 0.1)';
+        for(let i=0; i<10; i++) {
+             c.fillRect(210 + (i%3)*30, canvas.height - GROUND_HEIGHT - 280 + Math.floor(i/3)*40, 20, 30);
+        }
     }
 
     function animate() {
         window.requestAnimationFrame(animate);
         
-        c.fillStyle = '#1a1a2e';
+        // Dark background refresh
+        c.fillStyle = '#0B0F1A';
         c.fillRect(0, 0, canvas.width, canvas.height);
         
         drawBackground();
@@ -586,10 +744,9 @@
             }
         }
 
-        // Player 2 Movement (Supports both Inputs)
+        // Player 2 Movement
         player2.velocity.x = 0;
         if (!player2.dead && gameRunning) {
-            // Determine input source
             const p2Left = (gameMode === 'pvp' && keys.ArrowLeft.pressed) || (gameMode === 'ai' && aiKeys.ArrowLeft.pressed);
             const p2Right = (gameMode === 'pvp' && keys.ArrowRight.pressed) || (gameMode === 'ai' && aiKeys.ArrowRight.pressed);
             const p2LastKey = (gameMode === 'pvp') ? player2.lastKey : aiLastKey;
@@ -613,7 +770,7 @@
         }
 
         if (rectangularCollision({ rectangle1: player2, rectangle2: player1 }) &&
-            player2.isAttacking && player2.animationFrame % 2 === 0 // Added frame check to sync
+            player2.isAttacking && player2.animationFrame % 2 === 0
         ) {
             player2.isAttacking = false;
             player1.takeHit(10);
@@ -669,7 +826,7 @@
             case 'f': case 'F': player1.attack(); break;
             case 'g': case 'G': player1.block(true); break;
 
-            // P2 (Only active in PvP mode)
+            // P2 (PvP only)
             case 'ArrowRight': 
                 if(gameMode === 'pvp') { keys.ArrowRight.pressed = true; player2.lastKey = 'ArrowRight'; } break;
             case 'ArrowLeft': 
