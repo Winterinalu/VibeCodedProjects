@@ -1,0 +1,3073 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>NEON CIRCUIT: VOIDBREAK</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --color-bg: #0B0F1A;
+            --color-panel: #11162A;
+            --color-border: #1B2140;
+            --color-cyan: #00F5FF;
+            --color-magenta: #FF2ED1;
+            --color-purple: #7C3AED;
+            --color-success: #00FF9C;
+            --color-warning: #FFD600;
+            --color-danger: #FF3B3B;
+            --color-void: #1a1a1a;
+            --color-drone-assault: #FF9900;
+            --color-drone-deflector: #00C2FF;
+            --color-drone-hacker: #00FF00;
+        }
+
+        body {
+            background-color: var(--color-bg);
+            color: #E5E7EB;
+            font-family: 'Roboto Mono', monospace;
+            overflow: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+            cursor: crosshair;
+        }
+
+        h1, h2, h3, .ui-font {
+            font-family: 'Orbitron', sans-serif;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .neon-text-cyan {
+            color: var(--color-cyan);
+            text-shadow: 0 0 5px var(--color-cyan), 0 0 10px rgba(0, 245, 255, 0.5);
+        }
+        
+        .neon-text-danger {
+            color: var(--color-danger);
+            text-shadow: 0 0 5px var(--color-danger), 0 0 10px rgba(255, 59, 59, 0.5);
+        }
+
+        .neon-panel {
+            background-color: rgba(17, 22, 42, 0.90);
+            border: 1px solid var(--color-border);
+            position: relative;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            backdrop-filter: blur(4px);
+        }
+
+        .neon-panel::after {
+            content: '';
+            position: absolute;
+            bottom: -2px; right: -2px;
+            width: 20px; height: 20px;
+            border-bottom: 2px solid var(--color-cyan);
+            border-right: 2px solid var(--color-cyan);
+        }
+        
+        .neon-panel::before {
+             content: '';
+            position: absolute;
+            top: -2px; left: -2px;
+            width: 20px; height: 20px;
+            border-top: 2px solid var(--color-cyan);
+            border-left: 2px solid var(--color-cyan);
+        }
+
+        /* Scanline Effect */
+        .scanlines {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(
+                to bottom,
+                rgba(255,255,255,0),
+                rgba(255,255,255,0) 50%,
+                rgba(0,0,0,0.1) 50%,
+                rgba(0,0,0,0.1)
+            );
+            background-size: 100% 4px;
+            pointer-events: none;
+            z-index: 50;
+            opacity: 0.6;
+        }
+
+        .vignette {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle, rgba(0,0,0,0) 60%, rgba(0,0,0,0.8) 100%);
+            pointer-events: none;
+            z-index: 51;
+            transition: box-shadow 0.5s;
+        }
+
+        /* Buttons */
+        .btn-primary {
+            background: rgba(0, 245, 255, 0.05);
+            border: 1px solid var(--color-cyan);
+            color: var(--color-cyan);
+            padding: 8px 16px;
+            font-family: 'Orbitron', sans-serif;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.2s ease-out;
+            position: relative;
+            overflow: hidden;
+            font-size: 0.9em;
+            clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+        }
+
+        .btn-primary:hover {
+            background: rgba(0, 245, 255, 0.2);
+            box-shadow: 0 0 15px var(--color-cyan);
+            transform: translateX(2px);
+        }
+
+        .btn-primary.locked {
+            border-color: #444;
+            color: #666;
+            cursor: not-allowed;
+            pointer-events: none;
+            background: rgba(0,0,0,0.5);
+        }
+
+        .weapon-btn.active {
+            background: var(--color-cyan);
+            color: #000;
+            box-shadow: 0 0 15px var(--color-cyan);
+        }
+
+        @keyframes glitch {
+            0% { transform: translate(0); }
+            20% { transform: translate(-2px, 2px); }
+            40% { transform: translate(-2px, -2px); }
+            60% { transform: translate(2px, 2px); }
+            80% { transform: translate(2px, -2px); }
+            100% { transform: translate(0); }
+        }
+
+        .glitch-effect {
+            animation: glitch 0.3s cubic-bezier(.25, .46, .45, .94) both infinite;
+        }
+        
+        @keyframes overheat-pulse {
+            0% { border-color: #FF3B3B; box-shadow: 0 0 5px #FF3B3B; }
+            50% { border-color: #FFF; box-shadow: 0 0 15px #FF3B3B; }
+            100% { border-color: #FF3B3B; box-shadow: 0 0 5px #FF3B3B; }
+        }
+
+        .overheat-active {
+            animation: overheat-pulse 0.2s infinite;
+        }
+
+        #gameCanvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        .ui-layer {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        .pointer-events-auto {
+            pointer-events: auto;
+        }
+        
+        .drone-slot {
+            width: 8px; height: 8px;
+            background: #111;
+            border: 1px solid #444;
+            margin-right: 4px;
+            transform: rotate(45deg);
+        }
+        .drone-slot.filled {
+            background: var(--color-success);
+            border-color: var(--color-success);
+            box-shadow: 0 0 5px var(--color-success);
+        }
+        
+        /* Narrative Typewriter */
+        .typing-cursor::after {
+            content: '█';
+            animation: blink 1s infinite;
+            margin-left: 2px;
+            color: var(--color-cyan);
+        }
+        @keyframes blink { 0% {opacity:0} 50% {opacity:1} 100% {opacity:0} }
+
+        .log-entry {
+            margin-bottom: 8px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(0, 245, 255, 0.2);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Visual Effects -->
+    <div class="scanlines"></div>
+    <div class="vignette" id="vignetteOverlay"></div>
+
+    <!-- HUD -->
+    <div id="hud" class="absolute top-0 left-0 w-full h-full pointer-events-none hidden p-4 z-40">
+        <div class="flex justify-between items-start">
+            <!-- Left Panel: Stats -->
+            <div class="text-left w-64 pointer-events-auto">
+                 <div class="neon-panel p-3">
+                     <div class="text-[10px] text-gray-400 mb-1 tracking-widest">RUNNER DATA</div>
+                     <div class="flex justify-between items-end">
+                        <div id="scoreDisplay" class="text-xl ui-font neon-text-cyan">000000</div>
+                        <div class="text-right">
+                             <div class="text-[9px] text-gray-500">SHARDS</div>
+                             <div id="currencyDisplay" class="text-lg ui-font text-yellow-400">0</div>
+                        </div>
+                     </div>
+                     <div id="aggressionWarning" class="text-[10px] text-red-500 mt-1 hidden glitch-effect border-t border-red-900 pt-1">⚠ HIGH VALUE TARGET</div>
+                 </div>
+
+                 <!-- Comm Link / Narrative -->
+                 <div id="commPanel" class="mt-4 neon-panel p-3 hidden opacity-80 min-h-[80px]">
+                     <div class="text-[9px] text-cyan-500 tracking-widest border-b border-cyan-900 pb-1 mb-2">INCOMING TRANSMISSION...</div>
+                     <div id="narrativeText" class="text-xs text-green-300 font-mono leading-tight"></div>
+                 </div>
+            </div>
+            
+            <!-- Center Panel: Tactical -->
+            <div class="text-center w-1/3 mt-2">
+                 <div id="sectorNameDisplay" class="text-sm ui-font text-gray-500 tracking-widest bg-black bg-opacity-50 inline-block px-4 py-1 skew-x-[-10deg]">NEON DEBRIS FIELD</div>
+                 <div id="waveDisplay" class="text-xl ui-font text-white mt-1">WAVE 1</div>
+                 
+                 <div id="bossHpContainer" class="hidden w-64 h-3 mt-2 bg-gray-900 border border-red-500 mx-auto relative skew-x-[-10deg] overflow-hidden">
+                     <div id="bossHpBar" class="h-full bg-red-500 w-full"></div>
+                 </div>
+                 
+                 <!-- Heat Bar -->
+                 <div class="w-40 mx-auto mt-4">
+                     <div class="flex justify-between text-[9px] text-gray-500 tracking-widest mb-1">
+                         <span>TEMP</span>
+                         <span id="heatText">0%</span>
+                     </div>
+                     <div id="heatContainer" class="w-full h-2 bg-gray-900 border border-gray-700 relative">
+                         <div id="heatBar" class="h-full bg-cyan-400 w-0 transition-all duration-75"></div>
+                     </div>
+                     <div id="overheatMsg" class="text-[10px] text-red-500 text-center hidden mt-1 glitch-effect">SYSTEM OVERHEAT</div>
+                 </div>
+                 
+                 <!-- Drone Status -->
+                 <div id="droneStatus" class="mt-2 flex flex-col items-center hidden">
+                     <div class="flex mb-1 items-center">
+                         <div class="text-[9px] text-gray-500 mr-2">LINK</div>
+                         <div id="droneSlotsContainer" class="flex p-1 flex-wrap gap-1">
+                             <div class="drone-slot"></div>
+                         </div>
+                     </div>
+                     <div id="droneFormationDisplay" class="text-[9px] text-cyan-400 tracking-wider bg-gray-900 px-2 rounded">FORM: ORBIT [F]</div>
+                 </div>
+            </div>
+            
+            <!-- Right Panel: Ship Status -->
+            <div class="text-right w-64">
+                <div class="neon-panel p-3">
+                    <div class="text-[10px] text-gray-400 mb-1 tracking-widest">INTEGRITY</div>
+                    <div class="w-full h-4 border border-[#1B2140] bg-[#0B0F1A] relative skew-x-[-10deg] mb-2 overflow-hidden">
+                        <div id="healthBar" class="h-full bg-[#FF2ED1] transition-all duration-200" style="width: 100%;"></div>
+                    </div>
+                    
+                    <div class="flex justify-between items-center text-[10px] mt-2 border-t border-gray-800 pt-2">
+                        <div class="text-gray-500">DASH [SHIFT]</div>
+                        <div id="dashReadyMsg" class="text-cyan-400 hidden">READY</div>
+                        <div id="dashCooldownMsg" class="text-red-900">RECHARGING</div>
+                    </div>
+                    <div class="text-[9px] text-gray-600 mt-1 font-mono" id="debugCoords">LOC: 0,0</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Radar HUD (top-right) -->
+        <div id="radarContainer" class="absolute top-4 right-4 pointer-events-none z-50">
+            <canvas id="radarCanvas" width="180" height="180" style="background: rgba(0,0,0,0.35); border:1px solid rgba(255,255,255,0.04); border-radius:6px;"></canvas>
+        </div>
+
+        <div class="absolute bottom-8 w-full text-center text-xs text-gray-500 opacity-50 font-mono">
+            [WASD] MOVE // [MOUSE] AIM & SHOOT // [SHIFT] DASH // [F] DRONE FORMATION
+        </div>
+    </div>
+
+    <!-- Main Menu -->
+    <div id="mainMenu" class="ui-layer z-50 bg-[#0B0F1A] bg-opacity-90">
+        <div class="text-center relative">
+            <h1 class="text-6xl md:text-8xl mb-2 neon-text-cyan tracking-tighter glitch-effect">VOID<br>BREAK</h1>
+            <p class="text-sm md:text-base text-gray-400 mb-8 tracking-widest">TACTICAL // MODULAR // SURVIVAL</p>
+            
+            <button id="startBtn" class="btn-primary pointer-events-auto text-xl mb-4 w-64 block mx-auto">
+                INITIALIZE
+            </button>
+            <div class="text-[10px] text-gray-600 mt-4">V.2.1.0 // FACTIONS DETECTED</div>
+        </div>
+    </div>
+
+    <!-- Upgrade Menu -->
+    <div id="upgradeMenu" class="ui-layer z-50 bg-[#0B0F1A] bg-opacity-95 hidden overflow-y-auto">
+        <div class="neon-panel p-6 max-w-6xl w-full mx-4 pointer-events-auto flex flex-col h-[90vh] my-auto border-cyan-900">
+            <div class="flex justify-between items-center mb-4 border-b border-[#1B2140] pb-2 shrink-0">
+                <h2 class="text-2xl neon-text-cyan">SYSTEM UPGRADE</h2>
+                <div class="text-right">
+                    <div class="text-xs text-gray-400">AVAILABLE DATA</div>
+                    <div id="upgradeCurrency" class="text-2xl text-yellow-400 font-bold ui-font">0</div>
+                </div>
+            </div>
+
+            <div class="overflow-y-auto flex-grow pr-2">
+                <!-- Weapons -->
+                <div class="mb-6">
+                    <h3 class="text-white text-md mb-2 border-b border-[#1B2140] pb-1">WEAPON MODULES</h3>
+                    <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+                        <div class="p-3 border border-[#1B2140] bg-[#0e1220] hover:border-cyan-700 transition-colors">
+                            <div class="text-cyan-400 text-sm mb-1 font-bold">PLASMA</div>
+                            <div class="text-[10px] text-gray-400 mb-2">Standard Issue. Balanced.</div>
+                            <button id="wep-plasma-btn" class="btn-primary w-full text-xs weapon-btn active" onclick="game.equipWeapon('plasma')">EQUIPPED</button>
+                        </div>
+                        <div class="p-3 border border-[#1B2140] bg-[#0e1220] hover:border-purple-700 transition-colors">
+                            <div class="text-purple-400 text-sm mb-1 font-bold">RAILGUN</div>
+                            <div class="text-[10px] text-gray-400 mb-2">Pierce. High Heat. <span class="text-purple-500">Syn: Penetrator</span></div>
+                            <button id="wep-rail-btn" class="btn-primary w-full text-xs weapon-btn" onclick="game.unlockWeapon('rail')">UNLOCK (30)</button>
+                        </div>
+                        <div class="p-3 border border-[#1B2140] bg-[#0e1220] hover:border-yellow-700 transition-colors">
+                            <div class="text-yellow-400 text-sm mb-1 font-bold">GATLING</div>
+                            <div class="text-[10px] text-gray-400 mb-2">Kinetic Spin-up. High Heat.</div>
+                            <button id="wep-gatling-btn" class="btn-primary w-full text-xs weapon-btn" onclick="game.unlockWeapon('gatling')">UNLOCK (60)</button>
+                        </div>
+                         <div class="p-3 border border-[#1B2140] bg-[#0e1220] hover:border-purple-700 transition-colors">
+                            <div class="text-purple-400 text-sm mb-1 font-bold">PRISM</div>
+                            <div class="text-[10px] text-gray-400 mb-2">Splits on hit. Energy.</div>
+                            <button id="wep-prism-btn" class="btn-primary w-full text-xs weapon-btn" onclick="game.unlockWeapon('prism')">UNLOCK (80)</button>
+                        </div>
+                        <div class="p-3 border border-[#1B2140] bg-[#0e1220] hover:border-magenta-700 transition-colors">
+                            <div class="text-magenta-400 text-sm mb-1 font-bold">SEEKER</div>
+                            <div class="text-[10px] text-gray-400 mb-2">Auto-Track. <span class="text-magenta-500">Syn: Guidance</span></div>
+                            <button id="wep-homing-btn" class="btn-primary w-full text-xs weapon-btn" onclick="game.unlockWeapon('homing')">UNLOCK (50)</button>
+                        </div>
+
+                        <!-- Additional advanced weapons -->
+                        <div class="p-3 border border-[#1B2140] bg-[#0e1220] hover:border-cyan-700 transition-colors">
+                            <div class="text-cyan-400 text-sm mb-1 font-bold">TWIN CANNON</div>
+                            <div class="text-[10px] text-gray-400 mb-2">Paired barrels. High burst.</div>
+                            <button id="wep-twin_cannon-btn" class="btn-primary w-full text-xs weapon-btn" onclick="game.unlockWeapon('twin_cannon')">UNLOCK (70)</button>
+                        </div>
+                        <div class="p-3 border border-[#1B2140] bg-[#0e1220] hover:border-purple-700 transition-colors">
+                            <div class="text-purple-400 text-sm mb-1 font-bold">PRISM PULSE</div>
+                            <div class="text-[10px] text-gray-400 mb-2">Focused energy pulse.</div>
+                            <button id="wep-prism_pulse-btn" class="btn-primary w-full text-xs weapon-btn" onclick="game.unlockWeapon('prism_pulse')">UNLOCK (90)</button>
+                        </div>
+                        <div class="p-3 border border-[#1B2140] bg-[#0e1220] hover:border-yellow-700 transition-colors">
+                            <div class="text-yellow-400 text-sm mb-1 font-bold">FLAK SHOT</div>
+                            <div class="text-[10px] text-gray-400 mb-2">Anti-fighter spread with AOE.</div>
+                            <button id="wep-flak_shot-btn" class="btn-primary w-full text-xs weapon-btn" onclick="game.unlockWeapon('flak_shot')">UNLOCK (60)</button>
+                        </div>
+                        <div class="p-3 border border-[#1B2140] bg-[#0e1220] hover:border-purple-700 transition-colors">
+                            <div class="text-purple-400 text-sm mb-1 font-bold">COIL GUN</div>
+                            <div class="text-[10px] text-gray-400 mb-2">Mag-accelerated rounds, high velocity.</div>
+                            <button id="wep-coil_gun-btn" class="btn-primary w-full text-xs weapon-btn" onclick="game.unlockWeapon('coil_gun')">UNLOCK (85)</button>
+                        </div>
+                        <div class="p-3 border border-[#1B2140] bg-[#0e1220] hover:border-purple-700 transition-colors">
+                            <div class="text-purple-400 text-sm mb-1 font-bold">GAUSS</div>
+                            <div class="text-[10px] text-gray-400 mb-2">High-impact single shot.</div>
+                            <button id="wep-gauss_launcher-btn" class="btn-primary w-full text-xs weapon-btn" onclick="game.unlockWeapon('gauss_launcher')">UNLOCK (80)</button>
+                        </div>
+                        <div class="p-3 border border-[#1B2140] bg-[#0e1220] hover:border-magenta-700 transition-colors">
+                            <div class="text-magenta-400 text-sm mb-1 font-bold">THERMITE</div>
+                            <div class="text-[10px] text-gray-400 mb-2">Incendiary missiles with burn.</div>
+                            <button id="wep-thermite_launcher-btn" class="btn-primary w-full text-xs weapon-btn" onclick="game.unlockWeapon('thermite_launcher')">UNLOCK (75)</button>
+                        </div>
+                        <div class="p-3 border border-[#1B2140] bg-[#0e1220] hover:border-yellow-700 transition-colors">
+                            <div class="text-yellow-400 text-sm mb-1 font-bold">SCATTER MINE</div>
+                            <div class="text-[10px] text-gray-400 mb-2">Deployable proximity mines.</div>
+                            <button id="wep-scatter_mine-btn" class="btn-primary w-full text-xs weapon-btn" onclick="game.unlockWeapon('scatter_mine')">UNLOCK (65)</button>
+                        </div>
+                        <div class="p-3 border border-[#1B2140] bg-[#0e1220] hover:border-cyan-700 transition-colors">
+                            <div class="text-cyan-400 text-sm mb-1 font-bold">RAIL PULSE</div>
+                            <div class="text-[10px] text-gray-400 mb-2">Short-range rail bursts.</div>
+                            <button id="wep-rail_pulse-btn" class="btn-primary w-full text-xs weapon-btn" onclick="game.unlockWeapon('rail_pulse')">UNLOCK (75)</button>
+                        </div>
+                        <div class="p-3 border border-[#1B2140] bg-[#0e1220] hover:border-purple-700 transition-colors">
+                            <div class="text-purple-400 text-sm mb-1 font-bold">ARC CASTER</div>
+                            <div class="text-[10px] text-gray-400 mb-2">Arc lightning energy weapon.</div>
+                            <button id="wep-arc_caster-btn" class="btn-primary w-full text-xs weapon-btn" onclick="game.unlockWeapon('arc_caster')">UNLOCK (85)</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Drones -->
+                <div class="mb-6">
+                    <div class="flex justify-between border-b border-[#1B2140] pb-1 mb-2">
+                        <h3 class="text-white text-md">DRONE FABRICATION</h3>
+                        <div class="text-xs text-gray-400">LOAD: <span id="droneCountDisplay">0</span>/<span id="droneMaxDisplay">1</span></div>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div class="p-3 border border-gray-700 bg-[#161b2e] flex flex-col justify-between">
+                            <div><h4 class="text-gray-300 text-xs font-bold">CPU CORE</h4><p class="text-[9px] text-gray-500">Increases max drones.</p></div>
+                            <div class="mt-2 text-right">
+                                <div class="text-xs font-bold mb-1" id="stat-droneCap-lvl">LVL 1</div>
+                                <button class="btn-primary text-xs py-1 px-2 border-gray-500 text-gray-300" onclick="game.upgrade('droneCap')">UP (<span id="cost-droneCap">100</span>)</button>
+                            </div>
+                        </div>
+
+                        <div class="p-3 border border-orange-900 bg-[#1a120b]">
+                            <div class="text-[#FF9900] text-sm mb-1 font-bold">ASSAULT</div>
+                            <button id="drone-assault-btn" class="btn-primary w-full text-xs" onclick="game.toggleDrone('assault')">ACTIVATE (50)</button>
+                        </div>
+                        <div class="p-3 border border-cyan-900 bg-[#0b141a]">
+                            <div class="text-[#00C2FF] text-sm mb-1 font-bold">DEFLECTOR</div>
+                            <button id="drone-deflector-btn" class="btn-primary w-full text-xs" onclick="game.toggleDrone('deflector')">ACTIVATE (80)</button>
+                        </div>
+                        <div class="p-3 border border-green-900 bg-[#0b1a0e]">
+                            <div class="text-[#00FF00] text-sm mb-1 font-bold">HACKER</div>
+                            <button id="drone-hacker-btn" class="btn-primary w-full text-xs" onclick="game.toggleDrone('hacker')">ACTIVATE (100)</button>
+                        </div>
+                        
+                        <div class="p-3 border border-gray-700 bg-[#161b2e]">
+                            <div class="text-gray-300 text-sm mb-1 font-bold">DECOY</div>
+                            <button id="drone-decoy-btn" class="btn-primary w-full text-xs" onclick="game.toggleDrone('decoy')">ACTIVATE (40)</button>
+                        </div>
+                        <div class="p-3 border border-gray-700 bg-[#161b2e]">
+                            <div class="text-gray-300 text-sm mb-1 font-bold">INTERCEPTOR</div>
+                            <button id="drone-interceptor-btn" class="btn-primary w-full text-xs" onclick="game.toggleDrone('interceptor')">ACTIVATE (80)</button>
+                        </div>
+                        <div class="p-3 border border-gray-700 bg-[#161b2e]">
+                            <div class="text-gray-300 text-sm mb-1 font-bold">EMP BOMBER</div>
+                            <button id="drone-emp_bomber-btn" class="btn-primary w-full text-xs" onclick="game.toggleDrone('emp_bomber')">ACTIVATE (90)</button>
+                        </div>
+                        <div class="p-3 border border-gray-700 bg-[#161b2e]">
+                            <div class="text-gray-300 text-sm mb-1 font-bold">SWARM</div>
+                            <button id="drone-swarm-btn" class="btn-primary w-full text-xs" onclick="game.toggleDrone('swarm')">ACTIVATE (70)</button>
+                        </div>
+                        <div class="p-3 border border-gray-700 bg-[#161b2e]">
+                            <div class="text-gray-300 text-sm mb-1 font-bold">ENGINEER</div>
+                            <button id="drone-engineer-btn" class="btn-primary w-full text-xs" onclick="game.toggleDrone('engineer')">ACTIVATE (85)</button>
+                        </div>
+                        <div class="p-3 border border-gray-700 bg-[#161b2e]">
+                            <div class="text-gray-300 text-sm mb-1 font-bold">TRACTOR</div>
+                            <button id="drone-tractor-btn" class="btn-primary w-full text-xs" onclick="game.toggleDrone('tractor')">ACTIVATE (40)</button>
+                        </div>
+                        <div class="p-3 border border-gray-700 bg-[#161b2e]">
+                            <div class="text-gray-300 text-sm mb-1 font-bold">SENSOR</div>
+                            <button id="drone-sensor-btn" class="btn-primary w-full text-xs" onclick="game.toggleDrone('sensor')">ACTIVATE (35)</button>
+                        </div>
+                        <div class="p-3 border border-gray-700 bg-[#161b2e]">
+                            <div class="text-gray-300 text-sm mb-1 font-bold">REPAIR SWARM</div>
+                            <button id="drone-repair_swarm-btn" class="btn-primary w-full text-xs" onclick="game.toggleDrone('repair_swarm')">ACTIVATE (60)</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stats Tree (Visual Representation) -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-4">
+                    <!-- OFFENSE -->
+                    <div>
+                        <h3 class="text-red-400 text-md mb-2 border-b border-red-900 pb-1">OFFENSE NODES</h3>
+                        <div class="space-y-3 relative">
+                            <!-- Visual Line -->
+                            <div class="absolute left-4 top-4 bottom-4 w-0.5 bg-red-900 -z-10"></div>
+                            
+                            <div class="p-2 border border-red-900 bg-[#1a0b0b] flex justify-between items-center ml-0">
+                                <div><h4 class="text-red-300 text-xs">COOLING</h4></div>
+                                <button class="btn-primary text-xs py-1 px-2 border-red-500 text-red-500" onclick="game.upgrade('fireRate')">UP (<span id="cost-fireRate">5</span>)</button>
+                            </div>
+                             <div class="p-2 border border-red-900 bg-[#1a0b0b] flex justify-between items-center ml-4">
+                                <div><h4 class="text-red-300 text-xs">AMP</h4></div>
+                                <button class="btn-primary text-xs py-1 px-2 border-red-500 text-red-500" onclick="game.upgrade('damage')">UP (<span id="cost-damage">10</span>)</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- DEFENSE -->
+                    <div>
+                        <h3 class="text-blue-400 text-md mb-2 border-b border-blue-900 pb-1">DEFENSE NODES</h3>
+                        <div class="space-y-3 relative">
+                            <div class="absolute left-4 top-4 bottom-4 w-0.5 bg-blue-900 -z-10"></div>
+                            <div class="p-2 border border-blue-900 bg-[#0b0f1a] flex justify-between items-center ml-0">
+                                <div><h4 class="text-blue-300 text-xs">HULL</h4></div>
+                                <button class="btn-primary text-xs py-1 px-2 border-blue-500 text-blue-500" onclick="game.upgrade('health')">UP (<span id="cost-health">10</span>)</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- UTILITY -->
+                    <div>
+                        <h3 class="text-purple-400 text-md mb-2 border-b border-purple-900 pb-1">UTILITY NODES</h3>
+                        <div class="space-y-3 relative">
+                            <div class="absolute left-4 top-4 bottom-4 w-0.5 bg-purple-900 -z-10"></div>
+                            <div class="p-2 border border-purple-900 bg-[#120b1a] flex justify-between items-center ml-0">
+                                <div><h4 class="text-purple-300 text-xs">THRUSTERS</h4></div>
+                                <button class="btn-primary text-xs py-1 px-2 border-purple-500 text-purple-500" onclick="game.upgrade('speed')">UP (<span id="cost-speed">5</span>)</button>
+                            </div>
+                            <div class="p-2 border border-purple-900 bg-[#120b1a] flex justify-between items-center ml-4">
+                                <div><h4 class="text-purple-300 text-xs">DASH CAP</h4></div>
+                                <button class="btn-primary text-xs py-1 px-2 border-purple-500 text-purple-500" onclick="game.upgrade('dash')">UP (<span id="cost-dash">20</span>)</button>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <div class="text-center mt-4 pt-4 border-t border-[#1B2140] shrink-0">
+                <button id="nextSectorBtn" class="btn-primary w-full md:w-1/3 text-lg">
+                    INITIATE NEXT WAVE
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Game Over Screen -->
+    <div id="gameOverScreen" class="ui-layer z-50 bg-[#0B0F1A] bg-opacity-95 hidden">
+        <div class="text-center pointer-events-auto">
+            <h2 class="text-6xl mb-2 text-[#FF3B3B] glitch-effect ui-font">CRITICAL FAILURE</h2>
+            <p class="text-gray-400 mb-8">RUNNER SIGNAL LOST // CORRUPTION 100%</p>
+            
+            <div class="mb-8 p-6 border border-[#FF3B3B] bg-[#11162A]">
+                <div class="text-sm text-gray-500">FINAL CREDITS</div>
+                <div id="finalScore" class="text-4xl text-white ui-font">0</div>
+                <div class="text-sm text-gray-500 mt-2">WAVE REACHED</div>
+                <div id="finalSector" class="text-xl text-cyan-400 ui-font">01</div>
+            </div>
+
+            <button id="retryBtn" class="btn-secondary w-48 border border-white p-2 text-white hover:bg-white hover:text-black transition">
+                REBOOT THE SYSTEM
+            </button>
+            <button id="mainMenuBtn" class="btn-secondary w-48 border border-white p-2 text-white hover:bg-white hover:text-black transition" onclick="location.href='index.html'">
+                RETURN TO MAINFRAME
+        </div>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <script>
+        // --- AUDIO SYSTEM ---
+        const AudioSys = {
+            ctx: null,
+            musicNode: null,
+            musicGain: null,
+            isMusicPlaying: false,
+
+            init: function() {
+                window.AudioContext = window.AudioContext || window.webkitAudioContext;
+                this.ctx = new AudioContext();
+            },
+            playTone: function(freq, type, duration, vol = 0.1, slide = 0) {
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                if (slide) osc.frequency.linearRampToValueAtTime(freq + slide, this.ctx.currentTime + duration);
+                gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + duration);
+            },
+            playShoot: function(type) {
+                if(type === 'rail') this.playTone(100, 'sawtooth', 0.4, 0.1, 500);
+                else if (type === 'homing') this.playTone(400, 'sine', 0.2, 0.1, -200);
+                else if (type === 'gatling') this.playTone(120, 'square', 0.05, 0.1, -20);
+                else if (type === 'prism') this.playTone(800, 'triangle', 0.2, 0.1, 400);
+                else if (type === 'assault_drone') this.playTone(600, 'square', 0.05, 0.02, -100);
+                else this.playTone(880, 'square', 0.1, 0.03, -600);
+            },
+            playOverheat: function() { this.playTone(150, 'sawtooth', 0.5, 0.1, -50); }, 
+            playCooldown: function() { this.playTone(600, 'sine', 0.5, 0.05, 200); }, 
+            playDash: function() { this.playTone(300, 'triangle', 0.3, 0.2, 600); },
+            playExplosion: function() { this.playTone(80, 'sawtooth', 0.4, 0.1, -50); },
+            playShieldHit: function() { this.playTone(800, 'square', 0.1, 0.1, 200); },
+            playBossWarn: function() { this.playTone(100, 'square', 1.0, 0.2, 10); },
+            playCollect: function() { 
+                this.playTone(1200, 'sine', 0.1, 0.05); 
+                setTimeout(() => this.playTone(1800, 'sine', 0.1, 0.05), 60); 
+            },
+            playUi: function() { this.playTone(800, 'sine', 0.05, 0.02); },
+            playDataLog: function() { this.playTone(2000, 'square', 0.1, 0.05, -500); },
+            
+            startMusic: function(isBoss) {
+                if (this.isMusicPlaying || !this.ctx) return;
+                this.isMusicPlaying = true;
+                this.musicNode = this.ctx.createOscillator();
+                this.musicGain = this.ctx.createGain();
+                
+                // Deep drone
+                this.musicNode.type = 'sawtooth';
+                this.musicNode.frequency.setValueAtTime(isBoss ? 80 : 50, this.ctx.currentTime);
+                
+                // LFO for pulsing effect
+                const lfo = this.ctx.createOscillator();
+                lfo.type = 'sine';
+                lfo.frequency.setValueAtTime(isBoss ? 4 : 0.5, this.ctx.currentTime);
+                const lfoGain = this.ctx.createGain();
+                lfoGain.gain.setValueAtTime(50, this.ctx.currentTime);
+                
+                lfo.connect(lfoGain);
+                lfoGain.connect(this.musicNode.frequency);
+                
+                this.musicGain.gain.setValueAtTime(0.05, this.ctx.currentTime);
+                
+                // Filter to make it muffled/ambient
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(isBoss ? 800 : 200, this.ctx.currentTime);
+                
+                this.musicNode.connect(filter);
+                filter.connect(this.musicGain);
+                this.musicGain.connect(this.ctx.destination);
+                
+                this.musicNode.start();
+                lfo.start();
+                this.lfo = lfo; // Keep ref to stop
+            },
+            
+            stopMusic: function() {
+                if (!this.isMusicPlaying) return;
+                if(this.musicNode) this.musicNode.stop();
+                if(this.lfo) this.lfo.stop();
+                this.isMusicPlaying = false;
+            }
+        };
+
+        // --- NARRATIVE SYSTEM ---
+        const NarrativeSys = {
+            queue: [],
+            active: false,
+            timer: 0,
+            
+            logs: {
+                start: ["SYS.BOOT... OK", "SECTOR 7: BREACH DETECTED", "PROTOCOL: SURVIVE"],
+                wave5: ["WARNING: SIGNATURE DETECTED", "ENTITY CLASS: HEXA", "ADVISE: HEAVY WEAPONS"],
+                wave10: ["CORRUPTION LEVEL: CRITICAL", "REALITY ANCHOR UNSTABLE", "THEY ARE WATCHING"],
+                lowHp: ["INTEGRITY FAILING", "REROUTING POWER...", "DO NOT DIE YET"],
+                victory: ["SECTOR SECURED", "DOWNLOADING ENCRYPTED DATA...", "DATA FRAGMENT ACQUIRED"],
+                newFactionCore: ["NEW SIGNAL: CORE CLASS", "HEAVY ARMOR DETECTED"],
+                newFactionGlitch: ["ERROR: SIGNAL UNSTABLE", "ENTITY CLASS: GLITCHER"]
+            },
+            
+            addLog: function(key) {
+                if(this.logs[key]) {
+                    this.logs[key].forEach(line => this.queue.push(line));
+                    document.getElementById('commPanel').classList.remove('hidden');
+                }
+            },
+            
+            update: function(dt) {
+                if (this.queue.length > 0 && !this.active) {
+                    this.active = true;
+                    this.currentLine = this.queue.shift();
+                    this.charIndex = 0;
+                    this.timer = 0;
+                    this.dom = document.getElementById('narrativeText');
+                    this.dom.innerHTML = '';
+                    AudioSys.playDataLog();
+                }
+                
+                if (this.active) {
+                    this.timer += dt;
+                    if (this.timer > 0.05) { // Typing speed
+                        this.timer = 0;
+                        if (this.charIndex < this.currentLine.length) {
+                            this.dom.innerHTML += this.currentLine[this.charIndex];
+                            this.charIndex++;
+                        } else {
+                            // Wait before next line
+                            if (this.timer > 2.0) { // Read time
+                                this.active = false;
+                            } else {
+                                this.timer += dt * 20; // Hack to reuse timer for wait
+                            }
+                        }
+                    }
+                    if (this.charIndex >= this.currentLine.length && this.timer > 0) {
+                         this.dom.classList.add('typing-cursor');
+                         if(Math.random() > 0.9) this.active = false; 
+                    }
+                }
+            }
+        };
+
+        const COLORS = {
+            cyan: '#00F5FF', magenta: '#FF2ED1', purple: '#7C3AED', 
+            yellow: '#FFD600', white: '#FFFFFF', green: '#00FF9C', red: '#FF3B3B',
+            shield: '#4DA6FF',
+            droneAssault: '#FF9900', droneDeflector: '#00C2FF', droneHacker: '#00FF00',
+            neonCyan: '#00FFFF', neonMagenta: '#FF00FF',
+            coreYellow: '#FFAA00', coreOrange: '#FF5500',
+            glitchGreen: '#00FF00', glitchPurple: '#AA00FF',
+            hexaViolet: '#8800FF', hexaBlack: '#111111'
+        };
+
+        const FACTION_DATA = {
+            NEON: { name: 'NEON', colorPrimary: COLORS.neonCyan, colorSecondary: COLORS.neonMagenta, shape: 'TRIANGLE' },
+            CORE: { name: 'CORE', colorPrimary: COLORS.coreYellow, colorSecondary: COLORS.coreOrange, shape: 'SQUARE' },
+            GLITCH: { name: 'GLITCH', colorPrimary: COLORS.glitchGreen, colorSecondary: COLORS.glitchPurple, shape: 'GLITCH' },
+            HEXA: { name: 'HEXA', colorPrimary: COLORS.hexaViolet, colorSecondary: COLORS.hexaBlack, shape: 'HEXAGON' }
+        };
+
+        // Ship class definitions (used for variety and radar sizing)
+        const SHIP_CLASSES = {
+            SCOUT: { id: 'SCOUT', name: 'Scout', hpMul: 0.6, speedMul: 1.4, radarSize: 2, role: 'Small Craft' },
+            CORVETTE: { id: 'CORVETTE', name: 'Corvette', hpMul: 1.0, speedMul: 1.1, radarSize: 3, role: 'Escort' },
+            DESTROYER: { id: 'DESTROYER', name: 'Destroyer', hpMul: 1.8, speedMul: 0.9, radarSize: 4, role: 'Heavy Fire' },
+            CRUISER: { id: 'CRUISER', name: 'Cruiser', hpMul: 3.5, speedMul: 0.7, radarSize: 6, role: 'Area Control' },
+            BATTLESHIP: { id: 'BATTLESHIP', name: 'Battleship', hpMul: 6.0, speedMul: 0.5, radarSize: 8, role: 'Boss-Class' },
+            CARRIER: { id: 'CARRIER', name: 'Carrier', hpMul: 5.5, speedMul: 0.4, radarSize: 8, role: 'Drone Spawner' },
+            DREADNAUGHT: { id: 'DREADNAUGHT', name: 'Dreadnaught', hpMul: 10.0, speedMul: 0.35, radarSize: 10, role: 'Capital' },
+            BISMARK: { id: 'BISMARK', name: 'BISMARK', hpMul: 40.0, speedMul: 0.2, radarSize: 14, role: 'Apex' }
+        };
+
+        // Lightweight weapon defs (used to diversify enemy fire)
+        const WEAPON_DEFS = {
+            // Kinetic
+            light_gun: { type: 'bullet', speed: 420, dmg: 6 },
+            gatling: { type: 'bullet', speed: 520, dmg: 4 },
+            burst_cannon: { type: 'bullet', speed: 480, dmg: 9 },
+            scatter_shot: { type: 'bullet', speed: 380, dmg: 5 },
+            shrapnel_launcher: { type: 'bullet', speed: 300, dmg: 7 },
+            // Rail / piercing
+            railstorm: { type: 'rail', speed: 900, dmg: 35 },
+            void_needle: { type: 'rail', speed: 1000, dmg: 28 },
+
+            // Energy
+            plasma_beam: { type: 'beam', speed: 300, dmg: 22 },
+            prism_ray: { type: 'beam', speed: 260, dmg: 18 },
+            arc_storm: { type: 'beam', speed: 220, dmg: 16 },
+            flux_cannon: { type: 'beam', speed: 200, dmg: 30 },
+
+            // Explosive / heavy
+            missile_barrage: { type: 'missile', speed: 260, dmg: 18 },
+            seeker_missile: { type: 'missile', speed: 300, dmg: 22 },
+            cluster_bomb: { type: 'missile', speed: 180, dmg: 24 },
+            particle_cannon: { type: 'bomb', speed: 0, dmg: 35 },
+
+            // Exotic / corruption
+            glitch_pulse: { type: 'glitch', speed: 0, dmg: 0 },
+            neural_disruptor: { type: 'glitch', speed: 0, dmg: 0 },
+            hexacore_cannon: { type: 'beam', speed: 120, dmg: 45 },
+            // utility
+            ion_bomb: { type: 'ion', speed: 0, dmg: 0 },
+            homing_mini: { type: 'homing', speed: 420, dmg: 8 }
+            ,
+            // Additional weapons (expanded arsenal)
+            twin_cannon: { type: 'bullet', speed: 560, dmg: 10 },
+            prism_pulse: { type: 'beam', speed: 520, dmg: 20 },
+            flak_shot: { type: 'bullet', speed: 340, dmg: 12, aoe: true },
+            coil_gun: { type: 'rail', speed: 1150, dmg: 32 },
+            gauss_launcher: { type: 'bullet', speed: 700, dmg: 18 },
+            phase_disruptor: { type: 'glitch', speed: 0, dmg: 0, disable: true },
+            thermite_launcher: { type: 'missile', speed: 220, dmg: 26, burn:true },
+            scatter_mine: { type: 'bomb', speed: 0, dmg: 20, proximity:true },
+            rail_pulse: { type: 'rail', speed: 950, dmg: 30 },
+            arc_caster: { type: 'beam', speed: 240, dmg: 20 }
+        };
+
+        // --- WORLD CONSTANTS ---
+        const WORLD_WIDTH = 3000;
+        const WORLD_HEIGHT = 3000;
+
+        // --- PHYSICS HELPERS ---
+        function wrap(e) {
+            if (e.x < 0) e.x += WORLD_WIDTH;
+            if (e.x > WORLD_WIDTH) e.x -= WORLD_WIDTH;
+            if (e.y < 0) e.y += WORLD_HEIGHT;
+            if (e.y > WORLD_HEIGHT) e.y -= WORLD_HEIGHT;
+        }
+
+        // --- BACKGROUND SYSTEM ---
+        class Background {
+            constructor() {
+                this.particles = [];
+                for(let i=0; i<120; i++) {
+                    this.particles.push({
+                        x: Math.random() * WORLD_WIDTH,
+                        y: Math.random() * WORLD_HEIGHT,
+                        size: Math.random() * 2 + 1,
+                        vx: (Math.random()-0.5) * 10,
+                        vy: (Math.random()-0.5) * 10,
+                        alpha: Math.random()
+                    });
+                }
+                this.glitchTimer = 0;
+                this.glitchActive = false;
+            }
+            update(dt, wave) {
+                this.glitchTimer += dt;
+                if (this.glitchTimer > 5 - (wave * 0.1)) { // Glitch more often higher waves
+                    this.glitchActive = true;
+                    if(this.glitchTimer > 5.2) {
+                        this.glitchTimer = 0;
+                        this.glitchActive = false;
+                    }
+                }
+                
+                this.particles.forEach(p => {
+                    p.x += p.vx * dt;
+                    p.y += p.vy * dt;
+                    wrap(p);
+                });
+            }
+            draw(ctx, width, height) { 
+                ctx.save();
+                ctx.strokeStyle = this.glitchActive ? '#FF2ED1' : '#11162A'; 
+                ctx.lineWidth = 2;
+                
+                if (this.glitchActive) {
+                    ctx.translate((Math.random()-0.5)*10, (Math.random()-0.5)*10);
+                }
+
+                // Grid 
+                const gridSize = 100;
+                ctx.beginPath();
+                for(let x = 0; x <= WORLD_WIDTH; x += gridSize) {
+                    ctx.moveTo(x, 0); ctx.lineTo(x, WORLD_HEIGHT);
+                }
+                for(let y = 0; y <= WORLD_HEIGHT; y += gridSize) {
+                    ctx.moveTo(0, y); ctx.lineTo(WORLD_WIDTH, y);
+                }
+                ctx.stroke();
+
+                // Draw Particles
+                ctx.fillStyle = this.glitchActive ? '#00FF9C' : '#FFFFFF';
+                this.particles.forEach(p => {
+                    ctx.globalAlpha = p.alpha * 0.3;
+                    ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill();
+                });
+                ctx.globalAlpha = 1.0;
+                ctx.restore();
+            }
+        }
+
+        // --- POOL SYSTEM ---
+        class Pool {
+            constructor(createFn, maxSize = 500) {
+                this.pool = []; this.createFn = createFn; this.maxSize = maxSize;
+                for(let i=0; i<20; i++) this.pool.push(this.createFn());
+            }
+            get() { return this.pool.length > 0 ? this.pool.pop() : this.createFn(); }
+            release(obj) { if(this.pool.length < this.maxSize) this.pool.push(obj); }
+        }
+
+        // --- ENTITIES ---
+        class Entity {
+            constructor() { this.active = false; this.x=0; this.y=0; this.vx=0; this.vy=0; this.width=0; this.height=0; this.rotation=0; }
+        }
+
+        class Drone extends Entity {
+            constructor() { super(); this.type='assault'; this.angle=0; this.timer=0; }
+            spawn(type, index, total) {
+                this.type = type; this.index = index; this.total = total;
+                this.active = true;
+                this.angle = (Math.PI * 2 / total) * index;
+                this.timer = 0;
+            }
+            update(dt, player, enemies, bullets, formation) {
+                this.timer -= dt;
+
+                let targetX = player.x;
+                let targetY = player.y;
+
+                if (formation === 'ORBIT') {
+                    this.angle += 1.5 * dt;
+                    const radius = 60;
+                    targetX = player.x + Math.cos(this.angle) * radius;
+                    targetY = player.y + Math.sin(this.angle) * radius;
+                } else if (formation === 'VANGUARD') {
+                    let lookAngle = player.rotation;
+                    let offsetDist = 80;
+                    let spread = 40 * (this.index - (this.total-1)/2);
+                    let spreadX = spread * Math.cos(lookAngle + Math.PI/2);
+                    let spreadY = spread * Math.sin(lookAngle + Math.PI/2);
+                    targetX = player.x + Math.cos(lookAngle) * offsetDist + spreadX;
+                    targetY = player.y + Math.sin(lookAngle) * offsetDist + spreadY;
+                } else if (formation === 'REARGUARD') {
+                    let lookAngle = player.rotation + Math.PI;
+                    let offsetDist = 50;
+                    let spread = 20 * (this.index - (this.total-1)/2);
+                    let spreadX = spread * Math.cos(lookAngle + Math.PI/2);
+                    let spreadY = spread * Math.sin(lookAngle + Math.PI/2);
+                    targetX = player.x + Math.cos(lookAngle) * offsetDist + spreadX;
+                    targetY = player.y + Math.sin(lookAngle) * offsetDist + spreadY;
+                }
+
+                this.x += (targetX - this.x) * 5 * dt;
+                this.y += (targetY - this.y) * 5 * dt;
+
+                if (this.timer <= 0) {
+                    // Expanded drone behaviors
+                    if (this.type === 'assault') {
+                        let target = this.findTarget(enemies, 600);
+                        if (target) {
+                            this.timer = 0.45;
+                            game.spawnBullet(this.x, this.y, 0, 0, true, 3, 'assault_drone', target);
+                            AudioSys.playShoot('assault_drone');
+                        }
+                    } else if (this.type === 'deflector') {
+                        let target = this.findBullet(bullets, 220);
+                        if (target) {
+                            this.timer = 0.35;
+                            game.spawnBullet(this.x, this.y, 0, 0, true, 0, 'deflector_beam', target);
+                            AudioSys.playShoot('deflector');
+                        }
+                    } else if (this.type === 'hacker') {
+                        let target = this.findTarget(enemies, 600);
+                        if (target) {
+                            this.timer = 1.5;
+                            game.spawnBullet(this.x, this.y, 0, 0, true, 1, 'hacker_emp', target);
+                            AudioSys.playShoot('hacker');
+                        }
+                    } else if (this.type === 'seeker') {
+                        let target = player; // target player
+                        if (target) {
+                            this.timer = 1.2;
+                            game.spawnBullet(this.x, this.y, 0, 0, true, 4, 'homing_mini', target);
+                            AudioSys.playShoot('homing');
+                        }
+                    } else if (this.type === 'sniper') {
+                        let target = this.findTarget(enemies, 1000);
+                        if (target) {
+                            this.timer = 3.0;
+                            game.spawnBullet(this.x, this.y, Math.cos(Math.atan2(target.y-this.y, target.x-this.x))*900, Math.sin(Math.atan2(target.y-this.y, target.x-this.x))*900, true, 8, 'railstorm', target, true);
+                            AudioSys.playShoot('rail');
+                        }
+                    } else if (this.type === 'kamikaze') {
+                        // charge toward nearest enemy (or player if none)
+                        let t = this.findTarget(enemies, 800) || player;
+                        if (t) {
+                            this.timer = 0.2;
+                            const a = Math.atan2(t.y - this.y, t.x - this.x);
+                            this.vx = Math.cos(a) * 500; this.vy = Math.sin(a) * 500;
+                        }
+                    } else if (this.type === 'shield') {
+                        // periodically clear bullets closeby
+                        let b = this.findBullet(bullets, 120);
+                        if (b) { this.timer = 0.6; b.active = false; AudioSys.playShieldHit(); }
+                    } else if (this.type === 'repair') {
+                        // heal nearby allies
+                        for (let e of enemies) { if (e.active && Math.hypot(e.x-this.x, e.y-this.y)<80) { e.hp = Math.min(e.maxHp, e.hp + 2); } }
+                        this.timer = 2.0;
+                    } else if (this.type === 'jammer') {
+                        // increase player heat slightly if near
+                        if (Math.hypot(player.x-this.x, player.y-this.y) < 200) { player.heat += 3; }
+                        this.timer = 1.0;
+                    } else if (this.type === 'disruptor') {
+                        // spawn small hacker EMP at enemy positions (support)
+                        let t = this.findTarget(enemies, 600);
+                        if (t) { game.spawnBullet(this.x, this.y, 0,0, true, 0, 'hacker_emp', t); this.timer = 2.5; }
+                    } else if (this.type === 'decoy') {
+                        // create a short-lived visual/particle decoy to distract
+                        this.timer = 1.5;
+                        game.spawnParticles(this.x, this.y, 12, COLORS.magenta, 40, 2, 150);
+                    } else if (this.type === 'interceptor') {
+                        // aggressively chase nearest hostile projectile
+                        let b = this.findBullet(bullets, 400);
+                        if (b) { this.timer = 0.35; const a = Math.atan2(b.y - this.y, b.x - this.x); this.vx = Math.cos(a) * 700; this.vy = Math.sin(a) * 700; }
+                    } else if (this.type === 'emp_bomber') {
+                        // drop an EMP on nearest enemy
+                        let t = this.findTarget(enemies, 500);
+                        if (t) { game.spawnBullet(this.x, this.y, 0,0, true, 0, 'hacker_emp', t); this.timer = 3.0; }
+                    } else if (this.type === 'swarm') {
+                        // spawn a few homing mini projectiles to harass
+                        for (let i = 0; i < 3; i++) {
+                            const ang = Math.random() * Math.PI * 2;
+                            game.spawnBullet(this.x, this.y, Math.cos(ang) * 180, Math.sin(ang) * 180, true, 2, 'homing_mini');
+                        }
+                        this.timer = 4.0;
+                    } else if (this.type === 'engineer') {
+                        // stronger repair drone
+                        for (let e of enemies) { if (e.active && Math.hypot(e.x - this.x, e.y - this.y) < 120) { e.hp = Math.min(e.maxHp, e.hp + 5); } }
+                        this.timer = 2.5;
+                    } else if (this.type === 'tractor') {
+                        // apply a mild pull to the player when nearby
+                        const d = Math.hypot(player.x - this.x, player.y - this.y);
+                        if (d < 200) { const dx = this.x - player.x, dy = this.y - player.y; player.vx += dx * 0.02; player.vy += dy * 0.02; }
+                        this.timer = 1.0;
+                    } else if (this.type === 'sensor') {
+                        // brief reveal effect
+                        this.timer = 2.0; game.spawnParticles(this.x, this.y, 20, COLORS.cyan, 60, 1, 100);
+                    } else if (this.type === 'repair_swarm') {
+                        for (let e of enemies) { if (e.active && Math.hypot(e.x - this.x, e.y - this.y) < 100) e.hp = Math.min(e.maxHp, e.hp + 1); }
+                        this.timer = 1.5;
+                    }
+                }
+            }
+            findTarget(enemies, range) {
+                let t = null, minD = range;
+                for(let e of enemies) {
+                    if(!e.active) continue;
+                    let d = Math.hypot(e.x-this.x, e.y-this.y);
+                    if(d < minD) { minD=d; t=e; }
+                }
+                return t;
+            }
+            findBullet(bullets, range) {
+                let t=null, minD=range;
+                for(let b of bullets) {
+                    if(!b.active || b.isPlayer) continue;
+                    let d = Math.hypot(b.x-this.x, b.y-this.y);
+                    if(d<minD) { minD=d; t=b; }
+                }
+                return t;
+            }
+            draw(ctx) {
+                ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(this.angle * 2);
+                if (this.type === 'assault') {
+                    ctx.fillStyle = COLORS.droneAssault;
+                    ctx.beginPath(); ctx.moveTo(0,-5); ctx.lineTo(4,4); ctx.lineTo(-4,4); ctx.fill();
+                } else if (this.type === 'deflector') {
+                    ctx.strokeStyle = COLORS.droneDeflector; ctx.beginPath(); ctx.arc(0,0,8,0,Math.PI*2); ctx.stroke();
+                } else if (this.type === 'hacker') {
+                    ctx.fillStyle = COLORS.droneHacker; ctx.fillRect(-3,-3,6,6);
+                }
+                // aura
+                if (this.type === 'assault') {
+                    ctx.globalAlpha = 0.2; ctx.fillStyle = COLORS.droneAssault; ctx.beginPath(); ctx.arc(0,0,10,0,Math.PI*2); ctx.fill(); ctx.globalAlpha = 1.0;
+                } else if (this.type === 'deflector') {
+                    ctx.globalAlpha = 0.12; ctx.fillStyle = COLORS.droneDeflector; ctx.beginPath(); ctx.arc(0,0,12,0,Math.PI*2); ctx.fill(); ctx.globalAlpha = 1.0;
+                } else if (this.type === 'hacker') {
+                    ctx.globalAlpha = 0.12; ctx.fillStyle = COLORS.droneHacker; ctx.beginPath(); ctx.arc(0,0,8,0,Math.PI*2); ctx.fill(); ctx.globalAlpha = 1.0;
+                }
+                ctx.restore();
+            }
+        }
+
+        class GlitchChunk extends Entity {
+            spawn(x, y) {
+                this.active = true; this.x = x; this.y = y;
+                this.vx = (Math.random() - 0.5) * 100;
+                this.vy = (Math.random() - 0.5) * 100;
+                this.width = 40; this.height = 40;
+                this.rot = 0; this.rotSpeed = (Math.random()-0.5)*2;
+            }
+            update(dt) {
+                this.x += this.vx * dt; this.y += this.vy * dt;
+                this.rot += this.rotSpeed * dt;
+                wrap(this);
+            }
+            draw(ctx) {
+                ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(this.rot);
+                ctx.strokeStyle = `rgba(255, 0, 0, ${Math.random()*0.5+0.5})`;
+                ctx.lineWidth = 2;
+                ctx.strokeRect(-15, -15, 30, 30);
+                ctx.beginPath(); ctx.moveTo(-20, (Math.random()-0.5)*20); ctx.lineTo(20, (Math.random()-0.5)*20); ctx.stroke();
+                ctx.restore();
+            }
+        }
+
+        // --- PARTICLE SYSTEM ---
+        class Particle extends Entity {
+            constructor() { super(); this.life=0; this.color='#FFF'; this.size=2; }
+            spawn(x,y,vx,vy,life,color,size){ this.active=true; this.x=x; this.y=y; this.vx=vx; this.vy=vy; this.life=life; this.color=color||'#FFF'; this.size=size||2; }
+            update(dt){ this.life -= dt; if(this.life<=0) { this.active=false; return; } this.x += this.vx * dt; this.y += this.vy * dt; this.vx *= 0.98; this.vy *= 0.98; wrap(this); }
+            draw(ctx){ ctx.save(); ctx.globalAlpha = Math.max(0, Math.min(1, this.life)); ctx.fillStyle = this.color; ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI*2); ctx.fill(); ctx.restore(); }
+        }
+
+        class Bullet extends Entity {
+            spawn(x, y, vx, vy, isPlayer, damage, type='plasma', target=null, pierce=false) {
+                this.x = x; this.y = y; this.vx = vx; this.vy = vy;
+                this.isPlayer = isPlayer; this.damage = damage; this.type = type;
+                this.active = true; 
+                this.pierce = pierce || (type === 'rail' || type === 'prism'); 
+                this.target = target;
+                this.life = 2.0;
+                
+                if (type === 'gatling') { this.width=3; this.height=8; this.color=COLORS.yellow; }
+                else if (type === 'prism') { this.width=4; this.height=12; this.color=COLORS.purple; this.life=1.0; }
+                else if (type === 'rail') { this.width=4; this.height=30; this.color=COLORS.purple; }
+                else if (type === 'homing') { this.width=6; this.height=6; this.color=COLORS.magenta; }
+                else if (type === 'assault_drone') { 
+                    this.width=3; this.height=3; this.color=COLORS.droneAssault; 
+                    if(target) { let a=Math.atan2(target.y-y, target.x-x); this.vx=Math.cos(a)*500; this.vy=Math.sin(a)*500; }
+                }
+                else { this.width=4; this.height=10; this.color=isPlayer ? COLORS.cyan : COLORS.red; }
+                
+                this.rotation = Math.atan2(this.vy, this.vx) + Math.PI/2;
+                this.trailTimer = 0;
+            }
+            update(dt, enemies) {
+                this.life -= dt;
+                if (this.life <= 0) this.active = false;
+
+                if (this.type === 'homing' && this.isPlayer && enemies) {
+                    if (!this.target || !this.target.active) {
+                        let minD = 600;
+                        for(let e of enemies) {
+                            if(!e.active) continue;
+                            const d = Math.hypot(e.x-this.x, e.y-this.y);
+                            if(d<minD) { minD=d; this.target=e; }
+                        }
+                    }
+                    if(this.target && this.target.active) {
+                        const angle = Math.atan2(this.target.y - this.y, this.target.x - this.x);
+                        this.vx += (Math.cos(angle)*600 - this.vx) * 8 * dt;
+                        this.vy += (Math.sin(angle)*600 - this.vy) * 8 * dt;
+                        this.rotation = angle + Math.PI/2;
+                    }
+                }
+                this.x += this.vx * dt; this.y += this.vy * dt;
+                wrap(this);
+                // trail particles for missiles / heavy projectiles
+                if (this.type === 'missile' || this.type === 'plasma' || this.type === 'bullet') {
+                    this.trailTimer -= dt;
+                    if (this.trailTimer <= 0) {
+                        this.trailTimer = 0.04;
+                        // lightweight particle
+                        try { game.spawnParticles(this.x - this.vx*0.02, this.y - this.vy*0.02, 1, this.color||COLORS.red, 2, 0.8, 30); } catch(e){}
+                    }
+                }
+            }
+            draw(ctx) {
+                if (this.type === 'deflector_beam' && this.target) {
+                    ctx.strokeStyle = COLORS.droneDeflector; ctx.beginPath(); ctx.moveTo(this.x, this.y); ctx.lineTo(this.target.x, this.target.y); ctx.stroke();
+                    return;
+                }
+                ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(this.rotation);
+                // Visuals by type
+                if (this.type === 'gatling' || this.type === 'bullet' || this.type === 'light_gun' || this.type === 'twin_cannon' || this.type === 'gauss_launcher') {
+                    // fast thin streak
+                    ctx.fillStyle = this.color || COLORS.white;
+                    ctx.fillRect(-2, -6, 4, 12);
+                    ctx.globalAlpha = 0.6; ctx.fillStyle = this.color || COLORS.white; ctx.beginPath(); ctx.arc(0,0,3,0,Math.PI*2); ctx.fill(); ctx.globalAlpha = 1.0;
+                } else if (this.type === 'prism' || this.type === 'rail' || this.type === 'railstorm' || this.type === 'rail_pulse' || this.type === 'coil_gun') {
+                    // piercing beam
+                    ctx.strokeStyle = this.color || COLORS.purple; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(0,-15); ctx.lineTo(0,15); ctx.stroke();
+                } else if (this.type === 'missile' || this.type === 'missile_barrage' || this.type === 'thermite_launcher') {
+                    // missile with cone trail
+                    ctx.fillStyle = this.color || COLORS.yellow;
+                    ctx.beginPath(); ctx.moveTo(0,-6); ctx.lineTo(4,4); ctx.lineTo(-4,4); ctx.closePath(); ctx.fill();
+                } else if (this.type === 'flak_shot') {
+                    ctx.fillStyle = COLORS.orange; ctx.beginPath(); ctx.arc(0,0,6,0,Math.PI*2); ctx.fill();
+                } else if (this.type === 'scatter_mine') {
+                    ctx.fillStyle = this.color || COLORS.white; ctx.fillRect(-3,-3,6,6);
+                } else if (this.type === 'arc_caster') {
+                    ctx.strokeStyle = COLORS.cyan; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(-6,0); ctx.quadraticCurveTo(0,-8,6,0); ctx.stroke();
+                } else if (this.type === 'glitch' || this.type === 'glitch_pulse') {
+                    ctx.fillStyle = this.color || COLORS.magenta; ctx.fillRect(-3,-3,6,6);
+                    if (Math.random()>0.85) { ctx.globalAlpha=0.6; ctx.fillStyle='rgba(255,255,255,0.1)'; ctx.fillRect(-6,-6,12,12); ctx.globalAlpha=1.0; }
+                } else {
+                    ctx.fillStyle = this.color || (this.isPlayer?COLORS.cyan:COLORS.red);
+                    ctx.fillRect(-2,-2,4,4);
+                }
+                ctx.restore();
+            }
+        }
+
+        // --- SQUAD SYSTEM ---
+        class Squad {
+            constructor() {
+                this.active = false;
+                this.members = []; 
+                this.faction = FACTION_DATA.NEON;
+                this.leader = null;
+                this.state = 'ASSEMBLE'; 
+                this.fireTimer = 0;
+                this.fireWindow = false;
+                this.disarrayTimer = 0;
+            }
+
+            spawn(factionKey, x, y, count, wave) {
+                this.active = true;
+                this.faction = FACTION_DATA[factionKey];
+                this.members = [];
+                this.state = 'ASSEMBLE';
+                this.disarrayTimer = 0;
+                // Choose squad composition based on faction and wave
+                // Leaders are typically a destroyer/cruiser for mid waves, capital for HEXA/boss
+                let leaderClass = 'DESTROYER';
+                let unitClass = 'SCOUT';
+                if (this.faction.name === 'NEON') { leaderClass = wave >= 8 ? 'CRUISER' : 'DESTROYER'; unitClass = 'SCOUT'; }
+                if (this.faction.name === 'CORE') { leaderClass = wave >= 6 ? 'CRUISER' : 'DESTROYER'; unitClass = 'CORVETTE'; }
+                if (this.faction.name === 'GLITCH') { leaderClass = wave >= 9 ? 'BATTLESHIP' : 'DESTROYER'; unitClass = 'SCOUT'; }
+                if (this.faction.name === 'HEXA') { leaderClass = 'DREADNAUGHT'; unitClass = 'CRUISER'; }
+
+                // Choose an AI combo for the squad
+                const combos = ['FLANK_PIN','SUPPRESS_BOMBARD','WRAP_AMBUSH','SNIPER_SCOUT'];
+                // favor certain combos for factions/waves
+                let comboRoll = Math.random();
+                if (this.faction.name === 'GLITCH') comboRoll = Math.min(0.8, comboRoll + 0.15);
+                if (this.faction.name === 'HEXA') comboRoll = Math.max(0.5, comboRoll);
+                this.combo = combos[Math.floor(comboRoll * combos.length)];
+
+                // Spawn Leader
+                // Spawn from edge: compute a spawn anchor direction from player towards desired ring point
+                const spawnDir = Math.atan2(y - game.player.y, x - game.player.x);
+                const spawnStartDist = Math.max(WORLD_WIDTH, WORLD_HEIGHT) / 2 + 180 + Math.random()*220;
+                const startLX = game.player.x + Math.cos(spawnDir) * spawnStartDist;
+                const startLY = game.player.y + Math.sin(spawnDir) * spawnStartDist;
+                const leader = game.enemies.get();
+                leader.spawn(this.faction, 'LEADER', startLX, startLY, wave, this, leaderClass);
+                // store intended arrival spot so leader travels inward
+                leader.arrivalX = x; leader.arrivalY = y;
+                this.leader = leader;
+                this.members.push(leader);
+                game.activeEnemies.push(leader);
+
+                // Spawn Units (varied mix of small/escort)
+                for(let i=0; i<count; i++) {
+                    const unit = game.enemies.get();
+                    // place units near the spawn edge so they arrive in waves from outside
+                    const jitter = 80 + Math.random()*240;
+                    const ux = startLX + (Math.random()-0.5)*jitter;
+                    const uy = startLY + (Math.random()-0.5)*jitter;
+                    // Mix small chance for heavier unit per slot (same faction only)
+                    let chosen = unitClass;
+                    if (Math.random() > 0.85 && wave > 4) chosen = 'DESTROYER';
+                    if (Math.random() > 0.95 && wave > 8) chosen = 'CRUISER';
+                    unit.spawn(this.faction, 'UNIT', ux, uy, wave, this, chosen);
+                    // arrival point is the squad ring location so units move inwards in waves
+                    unit.arrivalX = x; unit.arrivalY = y;
+                    unit.assignedSlot = i; 
+                    // Assign role behaviors based on squad combo
+                    let role = 'default';
+                    if (this.combo === 'FLANK_PIN') role = (i % 2 === 0) ? 'flank' : 'suppress';
+                    if (this.combo === 'SUPPRESS_BOMBARD') role = (Math.random() > 0.6) ? 'bombard' : 'suppress';
+                    if (this.combo === 'WRAP_AMBUSH') role = (Math.random() > 0.6) ? 'ambush' : 'flank';
+                    if (this.combo === 'SNIPER_SCOUT') role = (Math.random() > 0.7) ? 'sniper' : 'scout';
+                    if (this.combo === 'MIXED_FLEET') role = (Math.random() > 0.7) ? 'support' : 'suppress';
+                    unit.roleBehavior = role;
+                    // mark a few as potential sub-leaders
+                    if (!this.subLeaders) this.subLeaders = [];
+                    if (this.subLeaders.length < 2 && (role === 'suppress' || role === 'flank')) {
+                        unit.isSubLeader = true; this.subLeaders.push(unit);
+                    }
+                    this.members.push(unit);
+                    game.activeEnemies.push(unit);
+                }
+                // Squad-level aggressiveness parameters
+                this.aggression = 1 + Math.min(3, Math.floor(wave/5));
+                this.coordinationTimer = 0;
+                // ensure at least one subleader
+                if ((!this.subLeaders || this.subLeaders.length===0) && this.members.length>1) {
+                    const candidate = this.members.find(m=>!m.isLeader && m.active);
+                    if (candidate) { candidate.isSubLeader = true; this.subLeaders = [candidate]; }
+                }
+                // leader assigns initial sub-squad roles
+                if (this.leader && this.subLeaders && this.subLeaders.length>0) {
+                    this.subLeaders.forEach((sli, idx) => {
+                        sli.roleBehavior = sli.roleBehavior || (idx%2===0? 'suppress' : 'flank');
+                    });
+                }
+                // Small stagger: assign slight delays so squads arrive in waves
+                const baseDelay = 0.3 + Math.random()*1.2;
+                for (let m of this.members) { if (m) { m.spawnDelay = baseDelay + Math.random()*1.6; } }
+            }
+
+            promoteNextLeader() {
+                if(this.members.length === 0) return;
+                
+                // Sort by Max HP (or just pick first for simplicity)
+                this.members.sort((a,b) => b.hp - a.hp);
+                const next = this.members[0];
+                if(next) {
+                    next.rank = 'LEADER';
+                    next.resize(); // Visually grow
+                    this.leader = next;
+                    this.disarrayTimer = 3.0; // Seconds of confusion
+                    // NarrativeSys.addLog("leader_promoted"); // Optional
+                }
+            }
+
+            update(dt, player) {
+                this.members = this.members.filter(m => m.active);
+                if (this.members.length === 0) {
+                    this.active = false;
+                    return;
+                }
+                
+                // Leader Succession Logic
+                if (!this.leader || !this.leader.active) {
+                    this.leader = null;
+                    this.promoteNextLeader();
+                    if(!this.leader) {
+                        // attempt to pick any active member as a temporary leader so the squad keeps fighting
+                        const candidate = this.members.find(m=>m && m.active);
+                        if (candidate) {
+                            candidate.rank = 'LEADER'; candidate.isLeader = true; candidate.resize();
+                            this.leader = candidate;
+                            this.state = 'ENGAGE';
+                        } else {
+                            this.state = 'PANIC'; // No one left
+                        }
+                    }
+                }
+
+                if(this.disarrayTimer > 0) {
+                    this.disarrayTimer -= dt;
+                    this.state = 'DISARRAY';
+                } else if(this.state === 'DISARRAY') {
+                    this.state = 'ENGAGE';
+                }
+
+                // AI State Machine
+                if (this.state === 'PANIC') {
+                    this.fireWindow = true; 
+                } else if (this.state === 'DISARRAY') {
+                    // Slower fire, loose movement
+                    this.fireWindow = (Math.random() > 0.8); 
+                } else if (this.state === 'ASSEMBLE') {
+                    if (!this.timer) this.timer = 0;
+                    this.timer += dt;
+                    if (this.timer > 1.5) {
+                        this.state = 'ENGAGE';
+                        this.timer = 0;
+                    }
+                } else if (this.state === 'ENGAGE') {
+                    // Fire Control
+                    // Aggressive coordinated firing and maneuvers
+                    this.fireTimer -= dt;
+                    if (this.fireTimer <= 0) {
+                        this.fireWindow = true;
+                        // shorter cooldowns with higher aggression
+                        let baseCd = 1.6 / Math.max(1, this.aggression);
+                        if (this.faction.name === 'CORE') baseCd *= 1.1;
+                        if (this.faction.name === 'HEXA') baseCd *= 1.4;
+                        this.fireTimer = baseCd + Math.random() * 1.0;
+                    }
+
+                    // Coordination: occasionally assign sub-leader maneuvers and regroup when necessary
+                    this.coordinationTimer -= dt;
+                    if (this.coordinationTimer <= 0) {
+                        this.coordinationTimer = 1.2; // frequent coordination
+                        if (this.subLeaders && this.subLeaders.length>0) {
+                            let idx = 0;
+                            for (let s of this.subLeaders) {
+                                if (!s || !s.active) continue;
+                                // assign behavior based on combo
+                                if (this.combo === 'FLANK_PIN') { s.roleBehavior = 'flank'; }
+                                else if (this.combo === 'SUPPRESS_BOMBARD') { s.roleBehavior = Math.random()>0.5?'bombard':'suppress'; }
+                                else if (this.combo === 'WRAP_AMBUSH') { s.roleBehavior = 'ambush'; }
+                                else if (this.combo === 'SNIPER_SCOUT') { s.roleBehavior = 'sniper'; }
+                                // compute an ordered target offset for this subleader around the player
+                                const ang = (idx / Math.max(1,this.subLeaders.length)) * Math.PI * 2 + (Math.random()-0.5)*0.4;
+                                const dist = 240 + 40 * idx;
+                                s.orderTarget = { x: player.x + Math.cos(ang)*dist, y: player.y + Math.sin(ang)*dist };
+                                    s.orderTimer = 1.2 + Math.random()*1.6;
+                                    // Propagate this sub-leader's order to nearby squad members (local influence)
+                                    const influenceRadius = 220 + (this.aggression * 20);
+                                    for (let m of this.members) {
+                                        if (!m || !m.active) continue;
+                                        if (m === s || m.isSubLeader || m.isLeader) continue;
+                                        const dd = Math.hypot(m.x - s.x, m.y - s.y);
+                                        if (dd <= influenceRadius) {
+                                            // Give a slightly varied offset so members don't stack exactly
+                                            const jitter = 30;
+                                            m.orderTarget = { x: s.orderTarget.x + (Math.random()-0.5)*jitter, y: s.orderTarget.y + (Math.random()-0.5)*jitter };
+                                            m.orderTimer = s.orderTimer * (0.8 + Math.random()*0.6);
+                                        }
+                                    }
+                                idx++;
+                            }
+                        }
+
+                        // Also assign a group anchor so non-subleader units move cohesively with the leader
+                        if (this.leader && this.members.length > 1) {
+                            for (let m of this.members) {
+                                if (!m || !m.active) continue;
+                                if (m.isLeader || m.isSubLeader) continue;
+                                // compute formation offset and set as a temporary orderTarget
+                                const off = this.getFormationOffset(m.assignedSlot || 0);
+                                const lr = this.leader.rotation - Math.PI/2;
+                                const rx = off.x * Math.cos(lr) - off.y * Math.sin(lr);
+                                const ry = off.x * Math.sin(lr) + off.y * Math.cos(lr);
+                                m.orderTarget = { x: this.leader.x + rx + (Math.random()-0.5)*20, y: this.leader.y + ry + (Math.random()-0.5)*20 };
+                                m.orderTimer = 1.6 + Math.random()*1.8; // longer so they keep cohesion
+                            }
+                        }
+
+                        // If fireWindow opened, issue a coordinated group attack order toward the player
+                        if (this.fireWindow && this.leader && this.members.length > 0) {
+                            // use a larger group attack distance to avoid overwhelming the player
+                            const groupDist = 260 + Math.random()*200;
+                            const ang = Math.random() * Math.PI * 2;
+                            const attackPoint = { x: player.x + Math.cos(ang) * groupDist, y: player.y + Math.sin(ang) * groupDist };
+                            // Give leader and nearby members a strong order
+                            this.leader.orderTarget = { x: attackPoint.x + (Math.random()-0.5)*60, y: attackPoint.y + (Math.random()-0.5)*60 };
+                            this.leader.orderTimer = 2.2 + Math.random()*1.6;
+                            for (let m of this.members) {
+                                if (!m || !m.active) continue;
+                                if (m.isLeader) continue;
+                                const dd = Math.hypot(m.x - this.leader.x, m.y - this.leader.y);
+                                if (dd < 600) {
+                                    m.orderTarget = { x: attackPoint.x + (Math.random()-0.5)*90, y: attackPoint.y + (Math.random()-0.5)*90 };
+                                    m.orderTimer = 1.6 + Math.random()*2.0;
+                                }
+                            }
+                            // Bias leaders to charge during coordinated attack
+                            if (this.leader.leaderTactic) this.leader.leaderTactic = Math.random()>0.35 ? 'charge' : this.leader.leaderTactic;
+                        }
+
+                        // Inter-squad leader coordination: sometimes sync nearby leaders' tactics/windows
+                        if (Math.random() > 0.6 && this.leader) {
+                            for (let other of game.squads) {
+                                if (!other || other === this || !other.active) continue;
+                                if (!other.leader || !other.leader.active) continue;
+                                const dd = Math.hypot(other.leader.x - this.leader.x, other.leader.y - this.leader.y);
+                                if (dd < 1000) {
+                                    // nudge other leader to coordinate: copy tactic and shorten fire cooldown
+                                    other.leader.leaderTactic = this.leader.leaderTactic;
+                                    other.fireTimer = Math.min(other.fireTimer || 1.0, this.fireTimer || 1.0);
+                                    // small chance to issue a combined charge order
+                                    if (Math.random() > 0.85) {
+                                        other.leader.orderTarget = { x: this.leader.x + (Math.random()-0.5)*120, y: this.leader.y + (Math.random()-0.5)*120 };
+                                        other.leader.orderTimer = 1.2 + Math.random()*1.6;
+                                    }
+                                }
+                            }
+                        }
+
+                    }
+
+                    // If leader is low, trigger regroup behavior
+                    if (this.leader && this.leader.active && this.leader.hp / this.leader.maxHp < 0.35 && this.state !== 'REGROUP') {
+                        this.state = 'REGROUP';
+                        this.regroupTimer = 2.4 + Math.random()*1.6;
+                        // assign fallback points behind leader for members
+                        const fleeAng = Math.atan2(player.y - this.leader.y, player.x - this.leader.x) + Math.PI;
+                        for (let m of this.members) {
+                            if (!m || !m.active) continue;
+                            const off = 120 + Math.random()*80;
+                            m.orderTarget = { x: this.leader.x + Math.cos(fleeAng) * off + (Math.random()-0.5)*60, y: this.leader.y + Math.sin(fleeAng) * off + (Math.random()-0.5)*60 };
+                            m.orderTimer = this.regroupTimer;
+                        }
+                    }
+
+                    // If regrouping, tick down and return to engage when done
+                    if (this.state === 'REGROUP') {
+                        this.regroupTimer -= dt;
+                        if (this.regroupTimer <= 0) {
+                            this.state = 'ENGAGE';
+                            // clear orderTargets to assault again
+                            for (let m of this.members) { if (m) { m.orderTarget = null; m.orderTimer = 0; } }
+                        }
+                    }
+                }
+            }
+
+            getFormationOffset(slotIndex) {
+                if (this.faction.name === 'NEON') {
+                    // Wedge / V
+                    const side = slotIndex % 2 === 0 ? 1 : -1;
+                    const row = Math.floor(slotIndex / 2) + 1;
+                    return { x: side * 50 * row, y: 50 * row };
+                } else if (this.faction.name === 'CORE') {
+                    // Box / Phalanx
+                    const col = slotIndex % 3;
+                    const row = Math.floor(slotIndex / 3) + 1;
+                    return { x: (col-1) * 80, y: row * 80 }; 
+                } else if (this.faction.name === 'GLITCH') {
+                    // Erratic / Cloud
+                    const t = Date.now()/1000;
+                    return { x: Math.sin(t + slotIndex)*100, y: Math.cos(t + slotIndex)*100 };
+                } else if (this.faction.name === 'HEXA') {
+                    // Orbiting satellites
+                    return { x: Math.cos(slotIndex)*150, y: Math.sin(slotIndex)*150 };
+                }
+                return { x: 0, y: 0 };
+            }
+        }
+
+        class Enemy extends Entity {
+            constructor() { super(); this.maxHp=1; this.trail = []; }
+            
+            spawn(factionInfo, rank, x, y, diff, squad, shipClassKey = null) {
+                this.active = true; 
+                this.faction = factionInfo;
+                this.rank = rank; // 'LEADER' or 'UNIT'
+                this.x = x; this.y = y; this.squad = squad;
+                this.timer = 0; this.vx = 0; this.vy = 0;
+                this.trail = [];
+                
+                this.isLeader = (rank === 'LEADER');
+                this.assignedSlot = -1;
+                this.glitchLevel = Math.min(1.0, diff * 0.1);
+                // Make enemies tougher earlier: stronger base multiplier
+                let hpMult = 1.2 + (diff * 0.25);
+                if (this.isLeader) hpMult *= 3.0;
+
+                // Ship class specifics
+                if (!shipClassKey) {
+                    shipClassKey = this.isLeader ? 'DESTROYER' : (this.faction.name === 'CORE' ? 'CORVETTE' : 'SCOUT');
+                }
+                this.shipClass = SHIP_CLASSES[shipClassKey] || SHIP_CLASSES.SCOUT;
+
+                // behavior default
+                this.roleBehavior = 'default';
+                this.isSubLeader = false;
+                this.offMap = false;
+                this.reappearTimer = 0;
+                // Assign weapons based on ship class and faction
+                this.weapons = [];
+                const pushW = (k) => { if (WEAPON_DEFS[k]) this.weapons.push(k); };
+                if (this.shipClass.id === 'SCOUT') { pushW('light_gun'); }
+                if (this.shipClass.id === 'CORVETTE') { pushW('twin_cannon'); pushW('light_gun'); }
+                if (this.shipClass.id === 'DESTROYER') { pushW('twin_cannon'); pushW('missile_barrage'); }
+                if (this.shipClass.id === 'CRUISER') { pushW('twin_cannon'); pushW('plasma_beam'); pushW('missile_barrage'); }
+                if (this.shipClass.id === 'BATTLESHIP') { pushW('plasma_beam'); pushW('missile_barrage'); pushW('railstorm'); }
+                if (this.shipClass.id === 'CARRIER') { pushW('missile_barrage'); pushW('light_gun'); }
+                if (this.shipClass.id === 'DREADNAUGHT') { pushW('plasma_beam'); pushW('railstorm'); pushW('missile_barrage'); }
+                if (this.shipClass.id === 'BISMARK') { pushW('railstorm'); pushW('missile_barrage'); pushW('plasma_beam'); pushW('glitch_pulse'); }
+                // Faction flavor: Glitchers get more glitch pulses
+                if (this.faction.name === 'GLITCH' && Math.random() > 0.4) pushW('glitch_pulse');
+
+                // Base values by faction then scaled by ship class multipliers
+                let baseHp = 2;
+                let baseSpeed = 200;
+                let baseScore = 30;
+                if (this.faction.name === 'NEON') { baseHp = 2; baseSpeed = 260; baseScore = 30; }
+                if (this.faction.name === 'CORE') { baseHp = 5; baseSpeed = 140; baseScore = 50; }
+                if (this.faction.name === 'GLITCH') { baseHp = 3; baseSpeed = 200; baseScore = 70; }
+                if (this.faction.name === 'HEXA') { baseHp = 50; baseSpeed = 90; baseScore = 1000; }
+
+                this.hp = Math.floor(baseHp * this.shipClass.hpMul * hpMult);
+                this.speed = Math.floor(baseSpeed * this.shipClass.speedMul);
+                this.score = this.isLeader ? Math.floor(baseScore * (this.shipClass.hpMul + 1)) : baseScore;
+                
+                this.maxHp = this.hp;
+                this.shootTimer = Math.random() * 2;
+                this.panicTimer = 0;
+                this.teleportTimer = 0;
+                // Barrel aiming and shield
+                this.barrelRotation = 0;
+                this.shieldMax = (this.shipClass.hpMul > 1.5) ? Math.floor(5 * this.shipClass.hpMul) : 0;
+                this.shieldStrength = this.shieldMax;
+                this.shieldRechargeTimer = 0;
+                this.shieldRegenRate = Math.max(0.5, this.shipClass.hpMul * 0.6);
+
+                this.resize();
+                // leader decision/tactic fields
+                if (this.isLeader) {
+                    this.leaderDecisionTimer = 0.6 + Math.random() * 1.6;
+                    this.leaderTactic = 'charge'; // default tactic
+                    this.leaderOrbitDir = Math.random() > 0.5 ? 1 : -1;
+                }
+            }
+
+            resize() {
+                // Size scaling based on ship class (preserve visual style)
+                let baseSize = 25;
+                if (this.shipClass) baseSize = 10 + this.shipClass.radarSize * 8;
+                if (this.rank === 'LEADER') baseSize *= 1.4;
+                this.width = baseSize;
+                this.height = baseSize;
+            }
+
+            update(dt, player) {
+                this.timer += dt;
+
+                // Order expiration handling: decrement any active order timer
+                if (this.orderTimer && this.orderTimer > 0) {
+                    this.orderTimer -= dt;
+                    if (this.orderTimer <= 0) { this.orderTarget = null; this.orderTimer = 0; }
+                }
+
+                // Handle spawnDelay: units spawn at edge and move toward arrival point before engaging
+                if (this.spawnDelay && this.spawnDelay > 0) {
+                    this.spawnDelay -= dt;
+                    // move slowly toward arrival point if present
+                    if (this.arrivalX !== undefined && this.arrivalY !== undefined) {
+                        const dx = this.arrivalX - this.x; const dy = this.arrivalY - this.y;
+                        const d = Math.hypot(dx, dy);
+                        if (d > 8) {
+                            const mv = Math.max(40, this.speed * 0.35);
+                            this.vx = Math.cos(Math.atan2(dy,dx)) * mv;
+                            this.vy = Math.sin(Math.atan2(dy,dx)) * mv;
+                            this.x += this.vx * dt; this.y += this.vy * dt;
+                        } else {
+                            // arrived
+                            this.spawnDelay = 0;
+                        }
+                    }
+                    return; // don't act until arrival
+                }
+
+                // Handle ambush/off-map units
+                if (this.offMap) {
+                    this.reappearTimer -= dt;
+                    if (this.reappearTimer <= 0) {
+                        // reappear behind player
+                        const ang = this.roleBehavior === 'ambush' ? (Math.atan2(player.y - this.y, player.x - this.x) + Math.PI) : Math.random()*Math.PI*2;
+                        this.x = player.x + Math.cos(ang) * (200 + Math.random()*150);
+                        this.y = player.y + Math.sin(ang) * (200 + Math.random()*150);
+                        this.offMap = false;
+                    } else {
+                        // stay inactive
+                        return;
+                    }
+                }
+                
+                if(this.isLeader || this.faction.name === 'HEXA') {
+                    if (this.timer % 0.1 < dt) {
+                        this.trail.push({x: this.x, y: this.y});
+                        if(this.trail.length > 5) this.trail.shift();
+                    }
+                }
+                
+                let tx = player.x;
+                let ty = player.y;
+
+                // Glitcher Teleport Logic
+                if (this.faction.name === 'GLITCH') {
+                    this.teleportTimer -= dt;
+                    if (this.teleportTimer <= 0 && Math.random() < 0.02) {
+                        this.x += (Math.random()-0.5) * 150;
+                        this.y += (Math.random()-0.5) * 150;
+                        this.teleportTimer = 2.0;
+                    }
+                }
+
+                // Movement Logic
+                if (this.squad && this.squad.state !== 'PANIC') {
+                    // aim barrel toward player smoothly
+                    try {
+                        const desired = Math.atan2(ty - this.y, tx - this.x);
+                        let diffA = desired - this.barrelRotation;
+                        while (diffA > Math.PI) diffA -= Math.PI*2;
+                        while (diffA < -Math.PI) diffA += Math.PI*2;
+                        this.barrelRotation += diffA * Math.min(1, dt * 6);
+                    } catch(e) {}
+                    // Leader Behavior
+                    if (this.isLeader) {
+                        // Leader tactical decision timer
+                        if (!this.leaderDecisionTimer) this.leaderDecisionTimer = 0.8 + Math.random()*1.6;
+                        this.leaderDecisionTimer -= dt;
+                        if (this.leaderDecisionTimer <= 0) {
+                            this.leaderDecisionTimer = 0.8 + Math.random()*2.4;
+                            // decide tactic based on hp, distance and squad combo
+                            const dtmp = Math.hypot(tx-this.x, ty-this.y);
+                            const hpRatio = (this.maxHp>0) ? (this.hp / this.maxHp) : 1;
+                            let pick = 'hold';
+                            if (hpRatio < 0.35) pick = 'fallback';
+                            else if (this.squad && this.squad.combo === 'FLANK_PIN') pick = Math.random()>0.5? 'circle' : 'flank';
+                            else if (this.squad && this.squad.combo === 'WRAP_AMBUSH') pick = Math.random()>0.5? 'ambush' : 'kite';
+                            else if (this.squad && this.squad.combo === 'SUPPRESS_BOMBARD') pick = Math.random()>0.6? 'bombard' : 'hold';
+                            else pick = Math.random()>0.65? 'charge' : 'hold';
+                            this.leaderTactic = pick;
+                        }
+
+                        // execute tactic
+                        const angToPlayer = Math.atan2(ty - this.y, tx - this.x);
+                        const dist = Math.hypot(tx - this.x, ty - this.y);
+                        let spd = this.speed;
+                        if (this.squad.state === 'DISARRAY') spd *= 0.5;
+
+                        if (this.leaderTactic === 'charge') {
+                            // aggressive forward
+                            this.vx = Math.cos(angToPlayer) * spd;
+                            this.vy = Math.sin(angToPlayer) * spd;
+                        } else if (this.leaderTactic === 'hold' || this.leaderTactic === 'bombard') {
+                            // stay at an engagement radius, slowly orbit
+                            const targetR = 260 + Math.min(200, Math.max(0, 160 - (this.squad? (this.squad.aggression*20) : 0)));
+                            const desiredX = player.x - Math.cos(angToPlayer) * targetR;
+                            const desiredY = player.y - Math.sin(angToPlayer) * targetR;
+                            let dx = desiredX - this.x, dy = desiredY - this.y;
+                            let ang = Math.atan2(dy, dx);
+                            let moveSpeed = spd * (dist > targetR ? 1.0 : 0.6);
+                            // orbit component
+                            const orbitStrength = 0.6;
+                            this.vx = Math.cos(ang) * moveSpeed + Math.cos(angToPlayer + Math.PI/2) * orbitStrength * spd * this.leaderOrbitDir;
+                            this.vy = Math.sin(ang) * moveSpeed + Math.sin(angToPlayer + Math.PI/2) * orbitStrength * spd * this.leaderOrbitDir;
+                        } else if (this.leaderTactic === 'circle') {
+                            // tighter circle at moderate speed
+                            const rad = 200 + Math.random()*160;
+                            const angleAlong = Math.atan2(this.y - player.y, this.x - player.x);
+                            const desiredX = player.x + Math.cos(angleAlong + 0.2*this.leaderOrbitDir) * rad;
+                            const desiredY = player.y + Math.sin(angleAlong + 0.2*this.leaderOrbitDir) * rad;
+                            const dx = desiredX - this.x, dy = desiredY - this.y;
+                            const ang = Math.atan2(dy, dx);
+                            this.vx = Math.cos(ang) * spd * 0.9 + Math.cos(angToPlayer + Math.PI/2) * 0.9 * spd * this.leaderOrbitDir;
+                            this.vy = Math.sin(ang) * spd * 0.9 + Math.sin(angToPlayer + Math.PI/2) * 0.9 * spd * this.leaderOrbitDir;
+                        } else if (this.leaderTactic === 'kite' || this.leaderTactic === 'flank' || this.leaderTactic === 'ambush') {
+                            // maintain distance and strafe; maybe occasionally close
+                            const keepR = 220 + Math.random()*160;
+                            const desiredX = player.x - Math.cos(angToPlayer) * keepR;
+                            const desiredY = player.y - Math.sin(angToPlayer) * keepR;
+                            let dx = desiredX - this.x, dy = desiredY - this.y;
+                            let ang = Math.atan2(dy, dx);
+                            // strafe perpendicular to player
+                            const strafe = 0.9;
+                            this.vx = Math.cos(ang) * spd * 0.8 + Math.cos(angToPlayer + Math.PI/2) * spd * strafe * this.leaderOrbitDir;
+                            this.vy = Math.sin(ang) * spd * 0.8 + Math.sin(angToPlayer + Math.PI/2) * spd * strafe * this.leaderOrbitDir;
+                            // occasionally do a short charge
+                            if (Math.random() < 0.02) {
+                                this.vx += Math.cos(angToPlayer) * spd * 0.6;
+                                this.vy += Math.sin(angToPlayer) * spd * 0.6;
+                            }
+                        } else if (this.leaderTactic === 'fallback') {
+                            // retreat briefly behind own formation (away from player)
+                            const awayAng = angToPlayer + Math.PI;
+                            this.vx = Math.cos(awayAng) * spd * 1.1;
+                            this.vy = Math.sin(awayAng) * spd * 1.1;
+                        } else {
+                            // fallback to default chase
+                            this.vx = Math.cos(angToPlayer) * spd;
+                            this.vy = Math.sin(angToPlayer) * spd;
+                        }
+
+                        // ensure leader faces player for visual cues
+                        this.rotation = Math.atan2(ty - this.y, tx - this.x) + Math.PI/2;
+                    } 
+                    // Unit Behavior (Follow Leader)
+                    else {
+                        if (this.squad.leader) {
+                            // micro-squad leader preference
+                            let leaderRef = this.squad.leader;
+                            if (this.squad.subLeaders && this.squad.subLeaders.length>0) {
+                                let best = null; let bestD = 1e9;
+                                for (let s of this.squad.subLeaders) {
+                                    if(!s || !s.active) continue;
+                                    let d = Math.hypot(s.x - this.x, s.y - this.y);
+                                    if (this.roleBehavior && s.roleBehavior === this.roleBehavior) d *= 0.6;
+                                    if (d < bestD) { bestD = d; best = s; }
+                                }
+                                if (best) leaderRef = best;
+                            }
+
+                            // Compute a destination target. Honor explicit orderTarget otherwise form up around leader
+                            const memberCount = (this.squad && this.squad.members && this.squad.members.length) ? this.squad.members.length : 1;
+                            const slotOff = (this.assignedSlot || 0) - ((memberCount - 1) / 2);
+                            let destX, destY;
+                            if (this.orderTarget) {
+                                // add slot-based offset so many units don't stack exactly on the same point
+                                destX = this.orderTarget.x + slotOff * 18 + (Math.random()-0.5)*10;
+                                destY = this.orderTarget.y + slotOff * 12 + (Math.random()-0.5)*10;
+                            } else {
+                                let lx = leaderRef.x;
+                                let ly = leaderRef.y;
+                                let offset = this.squad.getFormationOffset(this.assignedSlot || 0);
+                                // Disarray Mod
+                                if (this.squad.state === 'DISARRAY') {
+                                    offset.x += (Math.random()-0.5)*50;
+                                    offset.y += (Math.random()-0.5)*50;
+                                }
+
+                                // Role-specific formation adjustments
+                                // Flank units should approach from a lateral offset rather than straight-on
+                                if (this.roleBehavior === 'flank') {
+                                    const angToPlayer = Math.atan2(player.y - lx, player.x - lx);
+                                    const side = (this.assignedSlot % 2 === 0) ? 1 : -1;
+                                    const flankAng = angToPlayer + side * (Math.PI/2 + 0.35);
+                                    const flankDist = 200 + (Math.abs(slotOff) * 20) + Math.random()*80;
+                                    destX = player.x + Math.cos(flankAng) * flankDist + (Math.random()-0.5)*30;
+                                    destY = player.y + Math.sin(flankAng) * flankDist + (Math.random()-0.5)*30;
+                                } else if (this.roleBehavior === 'sniper') {
+                                    // sniper holds longer range
+                                    const angToPlayer = Math.atan2(player.y - lx, player.x - lx);
+                                    const keepR = 520 + Math.random()*200;
+                                    destX = player.x - Math.cos(angToPlayer) * keepR + (Math.random()-0.5)*40;
+                                    destY = player.y - Math.sin(angToPlayer) * keepR + (Math.random()-0.5)*40;
+                                } else if (this.roleBehavior === 'bombard') {
+                                    // bombarders hold position and fire heavy ordnance
+                                    const off = this.squad.getFormationOffset(this.assignedSlot || 0);
+                                    const lr = this.squad.leader.rotation - Math.PI/2;
+                                    const rx = off.x * Math.cos(lr) - off.y * Math.sin(lr);
+                                    const ry = off.x * Math.sin(lr) + off.y * Math.cos(lr);
+                                    destX = lx + rx + (Math.random()-0.5)*30;
+                                    destY = ly + ry + (Math.random()-0.5)*30;
+                                } else {
+                                    let lr = this.squad.leader.rotation - Math.PI/2;
+                                    let rx = offset.x * Math.cos(lr) - offset.y * Math.sin(lr);
+                                    let ry = offset.x * Math.sin(lr) + offset.y * Math.cos(lr);
+                                    destX = lx + rx + (Math.random()-0.5)*20;
+                                    destY = ly + ry + (Math.random()-0.5)*20;
+                                }
+                            }
+
+                            let dx = destX - this.x;
+                            let dy = destY - this.y;
+
+                            // Wrap logic for distance calc
+                            if (Math.abs(dx) > WORLD_WIDTH/2) dx = dx > 0 ? dx - WORLD_WIDTH : dx + WORLD_WIDTH;
+                            if (Math.abs(dy) > WORLD_HEIGHT/2) dy = dy > 0 ? dy - WORLD_HEIGHT : dy + WORLD_HEIGHT;
+
+                            let dist = Math.hypot(dx, dy);
+                            let angle = Math.atan2(dy, dx);
+
+                            // Slower, smoother catch-up to avoid sudden convergence
+                            let catchup = Math.min(dist * 1.2, this.speed * 0.95);
+
+                            // Base movement toward destination
+                            let vx = Math.cos(angle) * catchup;
+                            let vy = Math.sin(angle) * catchup;
+
+                            // Local separation to avoid stacking on top of allies
+                                const separationRadius = 72;
+                            let sepX = 0, sepY = 0;
+                            if (this.squad && this.squad.members) {
+                                for (let other of this.squad.members) {
+                                    if (!other || other === this || !other.active) continue;
+                                    const ddx = this.x - other.x; const ddy = this.y - other.y;
+                                    const dd = Math.hypot(ddx, ddy);
+                                    if (dd > 0 && dd < separationRadius) {
+                                        const repel = (separationRadius - dd) / separationRadius;
+                                        sepX += (ddx / dd) * repel * this.speed * 0.9;
+                                        sepY += (ddy / dd) * repel * this.speed * 0.9;
+                                    }
+                                }
+                            }
+
+                            // Apply separation and small random jitter for organic movement
+                            this.vx = vx + sepX + (Math.random()-0.5)*8;
+                            this.vy = vy + sepY + (Math.random()-0.5)*8;
+
+                            // Reduce rotation snapping for units (follow leader's rotation loosely)
+                            this.rotation = this.rotation + (this.squad.leader.rotation - this.rotation) * Math.min(1, 2 * (dt || 0.016));
+                        }
+                    }
+
+                    if (this.squad.fireWindow) {
+                        this.handleShooting(dt, player, false);
+                    }
+
+                } else {
+                    // Panic / No Squad
+                    this.panicTimer += dt;
+                    let angle = Math.atan2(ty - this.y, tx - this.x) + Math.sin(this.timer * 10);
+                    this.vx = Math.cos(angle) * this.speed;
+                    this.vy = Math.sin(angle) * this.speed;
+                    this.rotation += dt * 10;
+                    this.handleShooting(dt, player, true);
+                }
+
+                // Prevent units from moving into the player's position and nudge stalled leaders
+                try {
+                    const toPlayerX = player.x - this.x;
+                    const toPlayerY = player.y - this.y;
+                    const distToPlayer = Math.hypot(toPlayerX, toPlayerY) || 0.001;
+                    const minDist = 80 + (this.width || 20) * 0.6; // stronger minimum separation from player
+                    if (distToPlayer < minDist) {
+                        // immediate corrective reposition to circumference to avoid overlap
+                        const nx = (this.x - player.x) / distToPlayer;
+                        const ny = (this.y - player.y) / distToPlayer;
+                        this.x = player.x + nx * (minDist + 2);
+                        this.y = player.y + ny * (minDist + 2);
+                        // set a strong outward velocity to ensure separation on the next frames
+                        this.vx = nx * (120 + Math.random() * 160);
+                        this.vy = ny * (120 + Math.random() * 160);
+                        // small cooldown to not immediately be pulled back in by orders
+                        this.orderTimer = Math.max(this.orderTimer || 0, 0.6);
+                    }
+
+                    // If leader appears stuck (very low velocity) nudge them toward their objective
+                    if (this.isLeader && !this.offMap && !(this.spawnDelay > 0) ) {
+                        const velMag = Math.hypot(this.vx, this.vy);
+                        if (velMag < 12) {
+                            const tx = (this.orderTarget && this.orderTarget.x) || this.arrivalX || player.x;
+                            const ty = (this.orderTarget && this.orderTarget.y) || this.arrivalY || player.y;
+                            const a = Math.atan2(ty - this.y, tx - this.x);
+                            this.vx = Math.cos(a) * (this.speed * 0.6 + 30 * Math.random());
+                            this.vy = Math.sin(a) * (this.speed * 0.6 + 30 * Math.random());
+                        }
+                        // Edge/corner guard: if leader stuck at world bounds, push toward center
+                        const edgeMargin = 80;
+                        if (this.x < edgeMargin || this.x > WORLD_WIDTH - edgeMargin || this.y < edgeMargin || this.y > WORLD_HEIGHT - edgeMargin) {
+                            const cx = WORLD_WIDTH/2, cy = WORLD_HEIGHT/2;
+                            const a2 = Math.atan2(cy - this.y, cx - this.x);
+                            this.vx = Math.cos(a2) * (this.speed * 0.8 + 80);
+                            this.vy = Math.sin(a2) * (this.speed * 0.8 + 80);
+                            this.orderTimer = Math.max(this.orderTimer || 0, 0.8);
+                        }
+                    }
+                } catch (e) {}
+
+                // Thruster particles based on movement intensity
+                const spd = Math.hypot(this.vx, this.vy);
+                if (spd > 40 && Math.random() < Math.min(0.8, spd/600)) {
+                    const thrColor = this.faction.name==='CORE' ? COLORS.coreOrange : (this.faction.name==='GLITCH' ? COLORS.glitchPurple : (this.faction.name==='HEXA' ? COLORS.hexaViolet : COLORS.neonCyan));
+                    try { game.spawnParticles(this.x - Math.cos(this.rotation-Math.PI/2)* (this.height*0.5), this.y - Math.sin(this.rotation-Math.PI/2)*(this.height*0.5), 1, thrColor, 4, 1, 40); } catch(e) {}
+                }
+
+                // Shield recharge handling
+                if (this.shieldMax && this.shieldStrength < this.shieldMax) {
+                    this.shieldRechargeTimer -= dt;
+                    if (this.shieldRechargeTimer <= 0) {
+                        this.shieldStrength = Math.min(this.shieldMax, this.shieldStrength + this.shieldRegenRate * dt);
+                    }
+                } else if (this.shieldMax && this.shieldStrength >= this.shieldMax) {
+                    this.shieldRechargeTimer = 0;
+                }
+
+                this.x += this.vx * dt; this.y += this.vy * dt;
+                wrap(this);
+            }
+
+            handleShooting(dt, player, forceFire) {
+                this.shootTimer -= dt;
+                if (this.shootTimer <= 0) {
+                    let fireRate = 2.0; 
+                    if (!forceFire && this.faction.name === 'NEON') fireRate = 1.0;
+                    if (this.faction.name === 'CORE') fireRate = 2.5;
+                    if (this.faction.name === 'HEXA') fireRate = 1.5;
+
+                    // Disarray Penalty
+                    if (this.squad && this.squad.state === 'DISARRAY') fireRate *= 1.5;
+                    
+                    this.shootTimer = fireRate;
+                    
+                    let angle = Math.atan2(player.y-this.y, player.x-this.x);
+                    if (this.squad && this.squad.state === 'PANIC') angle += (Math.random()-0.5);
+
+                    // Faction Bullet Logic
+                    // Prefer configured weapons on this unit if present
+                    const chooseWeaponKey = () => {
+                        if (this.weapons && this.weapons.length>0) return this.weapons[Math.floor(Math.random()*this.weapons.length)];
+                        // fallback
+                        if (this.faction.name === 'HEXA') return 'railstorm';
+                        if (this.faction.name === 'CORE') return Math.random() > 0.6 ? 'missile_barrage' : 'twin_cannon';
+                        if (this.faction.name === 'GLITCH') return Math.random() > 0.7 ? 'glitch_pulse' : 'light_gun';
+                        return Math.random() > 0.7 ? 'light_gun' : 'twin_cannon';
+                    };
+
+                    const weaponKey = chooseWeaponKey();
+                    const def = WEAPON_DEFS[weaponKey] || WEAPON_DEFS.light_gun;
+
+                    if (def.type === 'bullet') {
+                        const speed = def.speed;
+                        if (weaponKey === 'twin_cannon') {
+                            game.spawnEnemyBullet(this.x, this.y, Math.cos(angle+0.15)*speed, Math.sin(angle+0.15)*speed, def.dmg, weaponKey);
+                            game.spawnEnemyBullet(this.x, this.y, Math.cos(angle-0.15)*speed, Math.sin(angle-0.15)*speed, def.dmg, weaponKey);
+                        } else {
+                            game.spawnEnemyBullet(this.x, this.y, Math.cos(angle)*speed, Math.sin(angle)*speed, def.dmg, weaponKey);
+                        }
+                    } else if (def.type === 'missile') {
+                        for (let m=0; m<3; m++) {
+                            const a = angle + (Math.random()-0.5) * 0.6;
+                            game.spawnEnemyBullet(this.x, this.y, Math.cos(a)*def.speed, Math.sin(a)*def.speed, def.dmg, weaponKey);
+                        }
+                    } else if (def.type === 'rail') {
+                        game.spawnEnemyBullet(this.x, this.y, Math.cos(angle)*def.speed, Math.sin(angle)*def.speed, def.dmg, weaponKey);
+                    } else if (def.type === 'glitch') {
+                        for (let g=0; g<2; g++) {
+                            const gx = this.x + (Math.random()-0.5)*100;
+                            const gy = this.y + (Math.random()-0.5)*100;
+                            const chunk = game.glitches.get(); chunk.spawn(gx, gy); game.activeGlitches.push(chunk);
+                        }
+                    } else if (def.type === 'beam') {
+                        game.spawnEnemyBullet(this.x, this.y, Math.cos(angle)*def.speed, Math.sin(angle)*def.speed, def.dmg, weaponKey);
+                    }
+                    // Role-specific overrides
+                    if (this.roleBehavior === 'sniper') {
+                        // use railstorm occasionally
+                        if (Math.random() > 0.6) {
+                            game.spawnEnemyBullet(this.x, this.y, Math.cos(angle)*WEAPON_DEFS.railstorm.speed, Math.sin(angle)*WEAPON_DEFS.railstorm.speed, WEAPON_DEFS.railstorm.dmg, 'railstorm');
+                        }
+                    }
+                    if (this.roleBehavior === 'bombard') {
+                        // heavy AoE like missiles
+                        for(let m=0;m<4;m++) {
+                            const a = angle + (Math.random()-0.5)*0.8;
+                            game.spawnEnemyBullet(this.x, this.y, Math.cos(a)*WEAPON_DEFS.missile_barrage.speed, Math.sin(a)*WEAPON_DEFS.missile_barrage.speed, WEAPON_DEFS.missile_barrage.dmg, 'missile_barrage');
+                        }
+                    }
+                    if (this.roleBehavior === 'flank') {
+                        // attempt side-approach: small torques in velocity
+                        this.vx += Math.cos(angle + Math.PI/2) * 40;
+                        this.vy += Math.sin(angle + Math.PI/2) * 40;
+                    }
+                    if (this.roleBehavior === 'suppress') {
+                        // faster fire cadence
+                        if (Math.random() > 0.6) this.shootTimer -= 0.4;
+                    }
+                    if (this.roleBehavior === 'ambush') {
+                        // sometimes teleport away to reappear
+                        if (Math.random() > 0.995) {
+                            this.offMap = true; this.reappearTimer = 1.0 + Math.random()*2.0; this.x = -1000; this.y = -1000;
+                        }
+                    }
+                }
+            }
+
+            draw(ctx) {
+                if(this.trail.length > 0) {
+                    ctx.beginPath();
+                    ctx.strokeStyle = `rgba(${this.faction.name==='HEXA'? '136,0,255':'255,0,255'}, 0.3)`;
+                    ctx.lineWidth = 1;
+                    this.trail.forEach((p, i) => {
+                         if(i===0) ctx.moveTo(p.x, p.y);
+                         else ctx.lineTo(p.x, p.y);
+                    });
+                    ctx.stroke();
+                }
+
+                ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(this.rotation);
+                
+                let color = this.faction.colorPrimary;
+                let color2 = this.faction.colorSecondary;
+                
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 2;
+                ctx.shadowColor = color;
+                ctx.shadowBlur = 10;
+                
+                // Modular hull: base hull, weapon mounts, thrusters, decal layers
+                const hw = this.width, hh = this.height;
+                // Base hull silhouette by faction
+                ctx.lineWidth = Math.max(1, Math.min(4, hw*0.03));
+                if (this.faction.shape === 'TRIANGLE') {
+                    ctx.beginPath(); ctx.moveTo(0, -hh*0.5); ctx.lineTo(hw*0.5, hh*0.5); ctx.lineTo(-hw*0.5, hh*0.5); ctx.closePath(); ctx.fillStyle='rgba(0,0,0,0.6)'; ctx.fill(); ctx.stroke();
+                } else if (this.faction.shape === 'SQUARE') {
+                    ctx.beginPath(); ctx.rect(-hw*0.5, -hh*0.5, hw, hh); ctx.fillStyle='rgba(0,0,0,0.7)'; ctx.fill(); ctx.stroke();
+                } else if (this.faction.shape === 'HEXAGON') {
+                    const r = hw*0.45;
+                    ctx.beginPath();
+                    for(let i=0;i<6;i++) ctx.lineTo(r*Math.cos(i*Math.PI/3), r*Math.sin(i*Math.PI/3));
+                    ctx.closePath(); ctx.fillStyle='rgba(0,0,0,0.6)'; ctx.fill(); ctx.stroke();
+                } else if (this.faction.shape === 'GLITCH') {
+                    ctx.save(); if (Math.random()>0.5) ctx.translate((Math.random()-0.5)*2,(Math.random()-0.5)*2);
+                    ctx.beginPath(); ctx.rect(-hw*0.5, -hh*0.5, hw, hh); ctx.fillStyle='rgba(0,0,0,0.55)'; ctx.fill(); ctx.stroke(); ctx.restore();
+                }
+
+                // Faction-specific markings and mounts
+                ctx.lineWidth = 1;
+                if (this.faction.name === 'NEON') {
+                    ctx.strokeStyle = this.faction.colorPrimary; ctx.beginPath(); ctx.moveTo(-hw*0.4,0); ctx.lineTo(hw*0.4,0); ctx.stroke();
+                    // small winglets
+                    ctx.beginPath(); ctx.moveTo(hw*0.45,hh*0.2); ctx.lineTo(hw*0.7,hh*0.5); ctx.stroke();
+                }
+                if (this.faction.name === 'CORE') {
+                    ctx.fillStyle = this.faction.colorSecondary; ctx.fillRect(-hw*0.12, -hh*0.12, hw*0.24, hh*0.24);
+                }
+                if (this.faction.name === 'GLITCH') {
+                    if (Math.random()>0.6) { ctx.strokeStyle = this.faction.colorSecondary; ctx.beginPath(); ctx.moveTo(-hw*0.5,0); ctx.lineTo(hw*0.5,0); ctx.stroke(); }
+                }
+                if (this.faction.name === 'HEXA') {
+                    ctx.strokeStyle = this.faction.colorPrimary; ctx.beginPath(); ctx.arc(0,0, Math.min(hw,hh)*0.25, 0, Math.PI*2); ctx.stroke();
+                    // corruption veins
+                    ctx.strokeStyle = 'rgba(136,0,255,0.6)'; ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(hw*0.45, -hh*0.2); ctx.stroke();
+                }
+
+                // Weapon mounts (visual barrels) - barrels rotate toward `barrelRotation`
+                const barrels = Math.min(4, Math.max(1, Math.floor(hw/20)));
+                for (let i=0;i<barrels;i++){
+                    const bx = (-barrels/2 + i) * (hw*0.18);
+                    ctx.save();
+                    ctx.translate(bx, -hh*0.45);
+                    ctx.rotate(this.barrelRotation - this.rotation);
+                    ctx.fillStyle = this.faction.colorPrimary;
+                    ctx.fillRect(- (hw*0.03), - (hh*0.06), hw*0.06, hh*0.16);
+                    ctx.restore();
+                }
+
+                // Adaptive shield visual
+                if (this.shieldStrength && this.shieldStrength > 0) {
+                    const shieldFrac = Math.max(0, Math.min(1, this.hp / this.maxHp));
+                    ctx.globalAlpha = 0.12 + 0.5 * shieldFrac;
+                    ctx.strokeStyle = this.faction.colorSecondary;
+                    ctx.lineWidth = 2 + Math.floor(this.shipClass.radarSize/2);
+                    ctx.beginPath(); ctx.arc(0,0, Math.max(hw,hh)*0.65 + (1-shieldFrac)*10, 0, Math.PI*2); ctx.stroke();
+                    ctx.globalAlpha = 1.0;
+                }
+
+                // Corrupted glitch shards
+                if (this.glitchLevel > 0.25) {
+                    const shards = 2 + Math.floor(this.glitchLevel * 4);
+                    for (let s=0;s<shards;s++) {
+                        const a = (Date.now()/500 + s) % (Math.PI*2);
+                        const rx = Math.cos(a) * (hw*0.6 + s*3);
+                        const ry = Math.sin(a) * (hh*0.6 + s*2);
+                        ctx.fillStyle = `rgba(136,0,255,${0.15 + 0.25*Math.random()})`;
+                        ctx.fillRect(rx-3, ry-3, 6, 6);
+                    }
+                }
+
+                // Thruster flare at rear
+                const thrSize = Math.max(3, Math.floor(hw*0.08));
+                const thrColor = this.faction.name==='CORE' ? COLORS.coreOrange : (this.faction.name==='GLITCH' ? COLORS.glitchPurple : (this.faction.name==='HEXA' ? COLORS.hexaViolet : COLORS.neonCyan));
+                ctx.fillStyle = thrColor; ctx.globalAlpha = 0.6; ctx.beginPath(); ctx.ellipse(0, hh*0.6, hw*0.18, thrSize, 0, 0, Math.PI*2); ctx.fill(); ctx.globalAlpha = 1.0;
+
+                // Leader aggressive ornamentation
+                if (this.isLeader) {
+                    const t = Date.now()/300;
+                    // outer pulsing multi-ring
+                    for (let r=0;r<3;r++) {
+                        const pulse = 1 + Math.sin(t + r*0.6) * (0.06 + r*0.02);
+                        ctx.strokeStyle = `rgba(255, ${200 - r*40}, ${200 - r*80}, ${0.4 - r*0.08})`;
+                        ctx.lineWidth = 2 + r; ctx.beginPath(); ctx.arc(0,0, Math.max(hw,hh)*0.6 * pulse + r*6, 0, Math.PI*2); ctx.stroke();
+                    }
+                    // spiky crown
+                    ctx.fillStyle = this.faction.colorSecondary;
+                    for (let s=0;s<6;s++) {
+                        const a = s * Math.PI*2/6 + t*0.4;
+                        const lx = Math.cos(a) * Math.max(hw,hh)*0.9;
+                        const ly = Math.sin(a) * Math.max(hw,hh)*0.9;
+                        ctx.beginPath(); ctx.moveTo(lx, ly); ctx.lineTo(lx + Math.cos(a)*14, ly + Math.sin(a)*14); ctx.lineTo(lx + Math.cos(a+0.3)*6, ly + Math.sin(a+0.3)*6); ctx.closePath(); ctx.fill();
+                    }
+                    // heavier core overlay
+                    ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.beginPath(); ctx.arc(0,0, Math.max(hw,hh)*0.28, 0, Math.PI*2); ctx.fill();
+                }
+
+                // Corruption overlay (flicker)
+                if (this.glitchLevel > 0.2) {
+                    ctx.globalAlpha = Math.min(0.6, this.glitchLevel * 0.6);
+                    ctx.fillStyle = 'rgba(136,0,255,0.12)'; ctx.fillRect(-hw*0.5, -hh*0.5, hw, hh);
+                    ctx.globalAlpha = 1.0;
+                }
+
+                ctx.restore();
+            }
+        }
+
+        class Currency extends Entity {
+            spawn(x, y, v) { this.active=true; this.x=x; this.y=y; this.value=v; this.vx=(Math.random()-0.5)*50; this.vy=(Math.random()-0.5)*50; }
+            update(dt, p) {
+                const d = Math.hypot(p.x-this.x, p.y-this.y);
+                if(d < 150) { this.x+=(p.x-this.x)*5*dt; this.y+=(p.y-this.y)*5*dt; }
+                else { this.x+=this.vx*dt; this.y+=this.vy*dt; }
+                wrap(this);
+            }
+            draw(ctx) { ctx.fillStyle=COLORS.yellow; ctx.beginPath(); ctx.arc(this.x,this.y,3,0,Math.PI*2); ctx.fill(); }
+        }
+
+        // --- GAME CONTROLLER ---
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const game = {
+            state: 'MENU',
+            wave: 1,
+            enemiesRemaining: 0,
+            
+            player: {
+                x: WORLD_WIDTH/2, y: WORLD_HEIGHT/2, vx: 0, vy: 0, rotation: 0,
+                hp: 100, maxHp: 100,
+                lastShot: 0, weapon: 'plasma',
+                dashCooldown: 0, invincible: 0,
+                activeDrones: [], maxDrones: 1,
+                heat: 0, maxHeat: 100, overheated: false,
+                spinup: 0, 
+                droneFormation: 'ORBIT' 
+            },
+            
+            camera: { x: 0, y: 0, scale: 1 },
+            background: new Background(),
+
+            stats: {
+                fireRate: { lvl: 1, val: 0.25, cost: 5, inc: 0.02, min: 0.05, heatDecay: 30 },
+                damage: { lvl: 1, val: 1, cost: 10, inc: 0.5 },
+                speed: { lvl: 1, val: 15, cost: 5, inc: 2 }, 
+                health: { lvl: 1, val: 100, cost: 10, inc: 20 },
+                dash: { lvl: 1, val: 3.0, cost: 20, inc: 0.4, min: 1.0 },
+                droneCap: { lvl: 1, val: 1, cost: 100, inc: 1, max: 3 }
+            },
+            
+            unlockedDrones: { assault: false, deflector: false, hacker: false },
+            unlocks: { rail: false, homing: false, gatling: false, prism: false },
+
+            score: 0, currency: 0, 
+            keys: {}, mouse: { x: 0, y: 0, down: false },
+            
+            bullets: new Pool(() => new Bullet(), 500),
+            enemies: new Pool(() => new Enemy(), 200),
+            pickups: new Pool(() => new Currency(), 200),
+            glitches: new Pool(() => new GlitchChunk(), 50),
+            drones: new Pool(() => new Drone(), 30),
+            particles: new Pool(() => new Particle(), 200),
+            squads: [],
+            
+            activeBullets: [], activeEnemies: [], activePickups: [], activeGlitches: [], activeDroneObjs: [],
+            activeParticles: [],
+            
+            waveClearTimer: null,
+
+            init() {
+                this.resize();
+                window.addEventListener('resize', () => this.resize());
+                
+                window.addEventListener('keydown', e => { 
+                    this.keys[e.code] = true; 
+                    if(e.code==='Space') this.mouse.down=true; 
+                    if(e.code.includes('Shift')) this.dash(); 
+                    if(e.code === 'KeyF') this.cycleDroneFormation();
+                });
+                window.addEventListener('keyup', e => { this.keys[e.code] = false; if(e.code==='Space') this.mouse.down=false; });
+                window.addEventListener('mousemove', e => { this.mouse.x = e.clientX; this.mouse.y = e.clientY; });
+                window.addEventListener('mousedown', () => this.mouse.down = true);
+                window.addEventListener('mouseup', () => this.mouse.down = false);
+                
+                document.getElementById('startBtn').addEventListener('click', () => { AudioSys.init(); AudioSys.playUi(); this.startGame(); });
+                document.getElementById('nextSectorBtn').addEventListener('click', () => { AudioSys.playUi(); this.startWave(); });
+                document.getElementById('retryBtn').addEventListener('click', () => { 
+                    document.getElementById('gameOverScreen').classList.add('hidden');
+                    document.getElementById('mainMenu').classList.remove('hidden'); 
+                });
+                
+                requestAnimationFrame(t => this.loop(t));
+            },
+
+            resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; },
+
+            startGame() {
+                this.score = 0; this.currency = 0; this.wave = 1;
+                Object.values(this.stats).forEach(s => { s.lvl = 1; });
+                this.stats.fireRate.val=0.25; this.stats.damage.val=1; this.stats.speed.val=20; 
+                this.stats.health.val=100; this.stats.dash.val=3.0; this.stats.droneCap.val=1;
+                
+                this.unlocks = { rail: false, homing: false, gatling: false, prism: false, twin_cannon:false, prism_pulse:false, flak_shot:false, coil_gun:false, gauss_launcher:false, phase_disruptor:false, thermite_launcher:false, scatter_mine:false, rail_pulse:false, arc_caster:false };
+                this.unlockedDrones = { assault: false, deflector: false, hacker: false, decoy:false, interceptor:false, emp_bomber:false, swarm:false, engineer:false, tractor:false, sensor:false, repair_swarm:false };
+                // Weapons: allow multiple weapon slots depending on hull (health stat -> hull capacity heuristic)
+                this.player.weapons = ['plasma'];
+                this.player.maxWeaponSlots = Math.max(1, Math.floor(this.stats.health.val / 150) + 1);
+                this.player.activeDrones = [];
+                this.player.maxDrones = this.stats.droneCap.val;
+                this.player.droneFormation = 'ORBIT';
+                
+                this.refreshUpgradeUI(); this.updateUI();
+                document.getElementById('mainMenu').classList.add('hidden');
+                document.getElementById('hud').classList.remove('hidden');
+                document.getElementById('droneStatus').classList.remove('hidden');
+                NarrativeSys.addLog('start');
+                this.startWave();
+                AudioSys.startMusic(false);
+            },
+
+            startWave() {
+                try {
+                    this.state = 'PLAYING';
+                document.getElementById('upgradeMenu').classList.add('hidden');
+                document.getElementById('bossHpContainer').classList.add('hidden');
+                document.getElementById('waveDisplay').innerText = `WAVE ${this.wave}`;
+                document.getElementById('waveDisplay').className = "text-xl ui-font text-white mt-1";
+                
+                this.player.x = WORLD_WIDTH/2; this.player.y = WORLD_HEIGHT/2; 
+                this.player.vx = 0; this.player.vy = 0;
+                this.player.hp = this.stats.health.val; 
+                this.player.invincible = 2.0; this.player.heat = 0; this.player.overheated = false;
+
+                // Release any existing active objects back into their pools (safe reset)
+                try {
+                    for (let b of this.activeBullets) { b.active = false; this.bullets.release(b); }
+                    for (let e of this.activeEnemies) { e.active = false; this.enemies.release(e); }
+                    for (let p of this.activePickups) { p.active = false; this.pickups.release(p); }
+                    for (let g of this.activeGlitches) { g.active = false; this.glitches.release(g); }
+                    for (let d of this.activeDroneObjs) { d.active = false; this.drones.release(d); }
+                    for (let pa of this.activeParticles) { pa.active = false; this.particles.release(pa); }
+                } catch(e) { console.warn('error releasing pools', e); }
+
+                this.activeEnemies = []; this.activeBullets = []; this.activePickups = []; this.activeGlitches = [];
+                this.activeDroneObjs = []; this.squads = [];
+
+                this.player.activeDrones.forEach((type, i) => {
+                    const d = this.drones.get(); d.spawn(type, i, this.player.activeDrones.length); this.activeDroneObjs.push(d);
+                });
+
+                // Spawn Glitches
+                let glitchCount = 10 + Math.floor(this.wave);
+                for(let i=0; i<glitchCount; i++) {
+                    const g = this.glitches.get(); g.spawn(Math.random()*WORLD_WIDTH, Math.random()*WORLD_HEIGHT);
+                    this.activeGlitches.push(g);
+                }
+                
+                // Narrative Check
+                if (this.wave === 3) NarrativeSys.addLog('newFactionCore');
+                if (this.wave === 5) NarrativeSys.addLog('wave5');
+                if (this.wave === 6) NarrativeSys.addLog('newFactionGlitch');
+                if (this.wave === 10) NarrativeSys.addLog('wave10');
+
+                // --- WAVE SPAWN LOGIC ---
+                let squadCount = 2 + Math.floor(this.wave / 1.5);
+                let isBoss = (this.wave % 5 === 0);
+
+                if (isBoss) {
+                    const bossSquad = new Squad();
+                    // Boss uses HEXA logic in waves 5+, otherwise just big Neon
+                    // Very high waves get BISMARK ultimate
+                    if (this.wave >= 50) {
+                        bossSquad.spawn('HEXA', WORLD_WIDTH/2, 100, 2, this.wave);
+                        // force leader to BISMARK
+                        if (bossSquad.leader) { bossSquad.leader.shipClass = SHIP_CLASSES.BISMARK; bossSquad.leader.weapons = ['railstorm','missile_barrage','plasma_beam','glitch_pulse']; bossSquad.leader.hp = bossSquad.leader.maxHp = Math.floor(bossSquad.leader.hp * 6); bossSquad.leader.resize(); }
+                    } else {
+                        bossSquad.spawn('HEXA', WORLD_WIDTH/2, 100, 2, this.wave);
+                    }
+                    this.squads.push(bossSquad);
+                    document.getElementById('bossHpContainer').classList.remove('hidden');
+                    AudioSys.playBossWarn();
+                } else {
+                    // Surround player: gentler early pressure, ramp up with wave
+                    squadCount = Math.max(1, Math.floor(this.wave / 3) + 1);
+                    for(let i=0; i<squadCount; i++) {
+                            const sq = new Squad();
+                            let factionKey = 'NEON';
+                            let r = Math.random();
+                            // Faction progression
+                            if (this.wave >= 3 && r > 0.5) factionKey = 'CORE';
+                            if (this.wave >= 6 && r > 0.75) factionKey = 'GLITCH';
+
+                            // place squads in a ring around the player to feel surrounded
+                            const ang = (i / squadCount) * Math.PI * 2 + (Math.random()-0.5)*0.6;
+                            // Use slightly larger spawn distances for early waves so they arrive slower
+                            const dist = 360 + Math.min(1200, 120 + this.wave * 60 + Math.random()*140);
+                            let x = this.player.x + Math.cos(ang) * dist;
+                            let y = this.player.y + Math.sin(ang) * dist;
+                            // clamp within world
+                            x = Math.max(50, Math.min(WORLD_WIDTH-50, x));
+                            y = Math.max(50, Math.min(WORLD_HEIGHT-50, y));
+
+                            // unit count ramps more slowly
+                            const unitCount = Math.max(2, 2 + Math.floor(this.wave / 3));
+                            sq.spawn(factionKey, x, y, unitCount, this.wave);
+                            this.squads.push(sq);
+                        }
+
+                    // Additionally spawn scattered solo scouts near player for later waves (skip wave 1)
+                    const extraScouts = (this.wave > 1) ? Math.min(6, 1 + Math.floor(this.wave / 3)) : 0;
+                    for (let s=0; s<extraScouts; s++) {
+                        const sx = this.player.x + (Math.random()-0.5) * 1000;
+                        const sy = this.player.y + (Math.random()-0.5) * 1000;
+                        const e = this.enemies.get(); e.spawn(FACTION_DATA.NEON, 'UNIT', sx, sy, this.wave, null, 'SCOUT'); this.activeEnemies.push(e);
+                    }
+                    }
+
+                    AudioSys.stopMusic();
+                    AudioSys.startMusic(isBoss);
+
+                    this.updateUI();
+                    } catch(err) {
+                        console.error('startWave failed', err);
+                        // fallback: clear arrays and set safe state so game continues
+                        this.activeEnemies = []; this.activeBullets = []; this.activePickups = []; this.activeGlitches = []; this.activeDroneObjs = []; this.squads = [];
+                        this.state = 'PLAYING';
+                    }
+            },
+            
+            cycleDroneFormation() {
+                const forms = ['ORBIT', 'VANGUARD', 'REARGUARD'];
+                let idx = forms.indexOf(this.player.droneFormation);
+                idx = (idx + 1) % forms.length;
+                this.player.droneFormation = forms[idx];
+                document.getElementById('droneFormationDisplay').innerText = `FORM: ${this.player.droneFormation} [F]`;
+                AudioSys.playUi();
+            },
+
+            dash() {
+                if (this.player.dashCooldown <= 0) {
+                    this.player.dashCooldown = this.stats.dash.val;
+                    this.player.invincible = 0.5;
+                    this.player.vx += Math.cos(this.player.rotation) * 350; 
+                    this.player.vy += Math.sin(this.player.rotation) * 350;
+                    AudioSys.playDash();
+                    this.player.heat = Math.max(0, this.player.heat - 30);
+                }
+            },
+
+            spawnEnemyBullet(x, y, vx, vy, damage=10, type='plasma') {
+                const b = this.bullets.get(); b.spawn(x, y, vx, vy, false, damage, type); this.activeBullets.push(b);
+            },
+            
+            spawnBullet(x, y, vx, vy, isPlayer, damage, type, target, pierce) {
+                 const b = this.bullets.get(); b.spawn(x, y, vx, vy, isPlayer, damage, type, target, pierce); this.activeBullets.push(b);
+            },
+
+            spawnParticles(x,y,amount,color,spread,size,vel){
+                for(let i=0;i<amount;i++){
+                    const p = this.particles.get();
+                    const a = Math.random()*Math.PI*2; const s = Math.random()*spread;
+                    const vx = Math.cos(a)*(Math.random()*vel);
+                    const vy = Math.sin(a)*(Math.random()*vel);
+                    p.spawn(x + Math.cos(a)*s, y + Math.sin(a)*s, vx, vy, 0.3 + Math.random()*0.6, color, size);
+                    this.activeParticles.push(p);
+                }
+            },
+
+            upgrade(key) {
+                const s = this.stats[key];
+                if (!s || s.lvl >= s.max) return;
+                if (this.currency >= s.cost) {
+                    this.currency -= s.cost; s.lvl++; s.cost = Math.ceil(s.cost*1.5);
+                    if (key === 'fireRate') { s.val = Math.max(s.min, s.val - s.inc); s.heatDecay += 5; }
+                    else if (key === 'dash') s.val = Math.max(s.min, s.val - s.inc);
+                    else if (key === 'droneCap') this.player.maxDrones = s.val;
+                    else s.val += s.inc;
+                    AudioSys.playCollect(); this.refreshUpgradeUI(); this.updateUI();
+                }
+            },
+            
+            unlockWeapon(type) {
+                const costs = { rail: 30, homing: 50, gatling: 60, prism: 80,
+                    twin_cannon:70, prism_pulse:90, flak_shot:60, coil_gun:85, gauss_launcher:80, thermite_launcher:75, scatter_mine:65, rail_pulse:75, arc_caster:85 };
+                if (this.currency >= costs[type]) {
+                    this.currency -= costs[type];
+                    this.unlocks[type] = true; 
+                    this.equipWeapon(type, true);
+                    AudioSys.playCollect(); this.refreshUpgradeUI(); this.updateUI();
+                }
+            },
+            
+            equipWeapon(type, free=false) {
+                if (!free && this.currency < 10) return; if (!free) this.currency -= 10;
+                if (!this.player.weapons) this.player.weapons = [this.player.weapon || 'plasma'];
+                const idx = this.player.weapons.indexOf(type);
+                if (idx > -1) {
+                    // toggle off
+                    this.player.weapons.splice(idx, 1);
+                    if (this.player.weapons.length === 0) this.player.weapons.push('plasma');
+                } else {
+                    if (this.player.weapons.length < (this.player.maxWeaponSlots || 1)) {
+                        this.player.weapons.push(type);
+                    } else {
+                        // replace primary
+                        this.player.weapons[0] = type;
+                    }
+                }
+                // Backwards compatibility: keep single `player.weapon` referencing primary slot
+                this.player.weapon = this.player.weapons[0];
+                this.refreshUpgradeUI(); this.updateUI();
+            },
+            
+            toggleDrone(type) {
+                const costs = { assault: 50, deflector: 80, hacker: 100, decoy:40, interceptor:80, emp_bomber:90, swarm:70, engineer:85, tractor:40, sensor:35, repair_swarm:60 };
+                if (!this.unlockedDrones[type]) {
+                    if (this.currency >= costs[type]) {
+                        this.currency -= costs[type]; this.unlockedDrones[type] = true; AudioSys.playCollect();
+                    } else return;
+                }
+                const idx = this.player.activeDrones.indexOf(type);
+                if (idx > -1) this.player.activeDrones.splice(idx, 1);
+                else if (this.player.activeDrones.length < this.player.maxDrones) this.player.activeDrones.push(type);
+                console.debug('toggleDrone', { type: type, activeDrones: this.player.activeDrones.slice(), maxDrones: this.player.maxDrones, unlocked: !!this.unlockedDrones[type], currency: this.currency });
+                this.refreshUpgradeUI(); this.updateUI();
+            },
+
+            refreshUpgradeUI() {
+                document.getElementById('upgradeCurrency').innerText = this.currency;
+                
+                ['fireRate', 'damage', 'speed', 'health', 'dash', 'droneCap'].forEach(k => {
+                    const s = this.stats[k];
+                    const btn = document.querySelector(`button[onclick="game.upgrade('${k}')"]`);
+                    if(btn) {
+                        if (s.lvl >= s.max) { btn.innerText = "MAX"; btn.classList.add('locked'); }
+                        else {
+                            btn.innerHTML = `UP (<span id="cost-${k}">${s.cost}</span>)`;
+                            if(this.currency < s.cost) btn.classList.add('locked'); else btn.classList.remove('locked');
+                        }
+                        if (k === 'droneCap') document.getElementById('stat-droneCap-lvl').innerText = `CAP: ${s.lvl}`;
+                    }
+                });
+                
+                     const updateW = (id, t, c) => {
+                         const btn = document.getElementById(id);
+                         if(this.player.weapons && this.player.weapons.includes(t)) { btn.innerText = "EQUIPPED"; btn.classList.add('active'); btn.onclick=null;}
+                         else if(this.unlocks[t]) {
+                              btn.innerText = "SWITCH (10)"; btn.classList.remove('active', 'locked');
+                              if (this.currency < 10) btn.classList.add('locked'); btn.onclick=()=>this.equipWeapon(t);
+                          }
+                         else { btn.innerText = `UNLOCK (${c})`; btn.classList.remove('active'); if(this.currency<c) btn.classList.add('locked'); else btn.classList.remove('locked'); btn.onclick=()=>this.unlockWeapon(t);}
+                     };
+                updateW('wep-rail-btn', 'rail', 30); updateW('wep-homing-btn', 'homing', 50);
+                     updateW('wep-gatling-btn', 'gatling', 60); updateW('wep-prism-btn', 'prism', 80);
+                     // new weapons
+                     updateW('wep-twin_cannon-btn', 'twin_cannon', 70);
+                     updateW('wep-prism_pulse-btn', 'prism_pulse', 90);
+                     updateW('wep-flak_shot-btn', 'flak_shot', 60);
+                     updateW('wep-coil_gun-btn', 'coil_gun', 85);
+                     updateW('wep-gauss_launcher-btn', 'gauss_launcher', 80);
+                     updateW('wep-thermite_launcher-btn', 'thermite_launcher', 75);
+                     updateW('wep-scatter_mine-btn', 'scatter_mine', 65);
+                     updateW('wep-rail_pulse-btn', 'rail_pulse', 75);
+                     updateW('wep-arc_caster-btn', 'arc_caster', 85);
+                
+                const pb = document.getElementById('wep-plasma-btn');
+                if(this.player.weapons && this.player.weapons.includes('plasma')) { pb.innerText="EQUIPPED"; pb.classList.add('active'); pb.onclick=null; }
+                else {
+                    pb.innerText="SWITCH (10)"; pb.classList.remove('active');
+                    if (this.currency < 10) pb.classList.add('locked'); else pb.classList.remove('locked');
+                    pb.onclick=()=>this.equipWeapon('plasma');
+                }
+
+                document.getElementById('droneCountDisplay').innerText = this.player.activeDrones.length;
+                document.getElementById('droneMaxDisplay').innerText = this.player.maxDrones;
+                
+                const updateD = (id, t, c) => {
+                    const btn = document.getElementById(id);
+                    if (this.player.activeDrones.includes(t)) { btn.innerText = "ACTIVE"; btn.classList.add('active'); btn.classList.remove('locked'); }
+                    else if (this.unlockedDrones[t]) {
+                        btn.innerText = "ACTIVATE"; btn.classList.remove('active');
+                        if (this.player.activeDrones.length >= this.player.maxDrones) btn.classList.add('locked'); else btn.classList.remove('locked');
+                    } else {
+                        btn.innerText = `UNLOCK (${c})`; btn.classList.remove('active');
+                        if (this.currency < c) btn.classList.add('locked'); else btn.classList.remove('locked');
+                    }
+                };
+                updateD('drone-assault-btn', 'assault', 50); updateD('drone-deflector-btn', 'deflector', 80);
+                updateD('drone-hacker-btn', 'hacker', 100);
+                // new drones
+                updateD('drone-decoy-btn', 'decoy', 40); updateD('drone-interceptor-btn', 'interceptor', 80);
+                updateD('drone-emp_bomber-btn', 'emp_bomber', 90); updateD('drone-swarm-btn', 'swarm', 70);
+                updateD('drone-engineer-btn', 'engineer', 85); updateD('drone-tractor-btn', 'tractor', 40);
+                updateD('drone-sensor-btn', 'sensor', 35); updateD('drone-repair_swarm-btn', 'repair_swarm', 60);
+            },
+
+            updateUI() {
+                document.getElementById('scoreDisplay').innerText = this.score.toString().padStart(6, '0');
+                document.getElementById('currencyDisplay').innerText = this.currency;
+                
+                const hp = (this.player.hp / this.stats.health.val) * 100;
+                document.getElementById('healthBar').style.width = `${Math.max(0,hp)}%`;
+                
+                // Low HP Narrative
+                if (hp < 30 && !this.lowHpTriggered) {
+                    NarrativeSys.addLog('lowHp');
+                    this.lowHpTriggered = true;
+                } else if (hp > 50) {
+                    this.lowHpTriggered = false;
+                }
+                
+                const heat = Math.min(100, this.player.heat);
+                const heatBar = document.getElementById('heatBar');
+                const heatContainer = document.getElementById('heatContainer');
+                const heatText = document.getElementById('heatText');
+                
+                heatBar.style.width = `${heat}%`;
+                heatText.innerText = Math.floor(heat) + "%";
+                
+                if (this.player.overheated) {
+                    heatBar.style.backgroundColor = COLORS.danger; heatContainer.classList.add('overheat-active');
+                    document.getElementById('overheatMsg').classList.remove('hidden');
+                    heatText.classList.add('text-red-500');
+                } else {
+                    heatBar.style.backgroundColor = heat > 80 ? COLORS.warning : COLORS.cyan; heatContainer.classList.remove('overheat-active');
+                    document.getElementById('overheatMsg').classList.add('hidden');
+                    heatText.classList.remove('text-red-500');
+                }
+                
+                const aggroMsg = document.getElementById('aggressionWarning');
+                if(this.currency > 50) aggroMsg.classList.remove('hidden'); else aggroMsg.classList.add('hidden');
+
+                const dashMsg = document.getElementById('dashReadyMsg');
+                const dashCool = document.getElementById('dashCooldownMsg');
+                
+                if(this.player.dashCooldown <= 0) {
+                    dashMsg.classList.remove('hidden');
+                    dashCool.classList.add('hidden');
+                } else {
+                    dashMsg.classList.add('hidden');
+                    dashCool.classList.remove('hidden');
+                }
+                
+                // Rebuild drone slots to match player's drone cap so UI allows selecting more drones
+                const container = document.getElementById('droneSlotsContainer');
+                if (container) {
+                    container.innerHTML = '';
+                    const maxSlots = Math.max(0, this.player.maxDrones || 0);
+                    console.debug('updateUI: droneSlots', { maxSlots: maxSlots, activeDrones: (this.player.activeDrones||[]).length });
+                    for (let i = 0; i < maxSlots; i++) {
+                        const slot = document.createElement('div');
+                        slot.className = 'drone-slot';
+                        if (i < (this.player.activeDrones ? this.player.activeDrones.length : 0)) slot.classList.add('filled');
+                        slot.style.display = 'block';
+                        container.appendChild(slot);
+                    }
+                }
+
+                document.getElementById('debugCoords').innerText = `LOC: ${Math.floor(this.player.x)},${Math.floor(this.player.y)} | Drones: ${(this.player.activeDrones?this.player.activeDrones.length:0)}/${(this.player.maxDrones||0)} objs:${this.activeDroneObjs.length}`;
+            },
+
+            loop(t) {
+                const dt = Math.min((t - this.lastTime)/1000, 0.1); this.lastTime = t;
+                if(this.state === 'PLAYING') { this.update(dt); this.draw(); }
+                requestAnimationFrame(t => this.loop(t));
+            },
+
+            update(dt) {
+                // Narrative Update
+                NarrativeSys.update(dt);
+                
+                // Physics (ABSOLUTE WASD)
+                const thrust = this.stats.speed.val;
+                
+                if (this.keys['KeyW']) this.player.vy -= thrust * dt;
+                if (this.keys['KeyS']) this.player.vy += thrust * dt;
+                if (this.keys['KeyA']) this.player.vx -= thrust * dt;
+                if (this.keys['KeyD']) this.player.vx += thrust * dt;
+                
+                // Friction
+                this.player.vx *= 0.98; this.player.vy *= 0.98;
+                this.player.x += this.player.vx; this.player.y += this.player.vy;
+                wrap(this.player);
+                
+                this.background.update(dt, this.wave);
+                
+                // Camera Scale calculation (Fit approx 1500px of world into smallest dimension)
+                // This zooms in to show about 1/4 of area or 1/2 of dimension compared to full map
+                const targetViewSize = 1500; 
+                const scaleX = canvas.width / targetViewSize;
+                const scaleY = canvas.height / targetViewSize;
+                this.camera.scale = Math.max(scaleX, scaleY); // Ensure we cover enough
+
+                // Centering offset
+                this.camera.offsetX = (canvas.width - WORLD_WIDTH * this.camera.scale) / 2;
+                this.camera.offsetY = (canvas.height - WORLD_HEIGHT * this.camera.scale) / 2;
+
+                // Clamping camera to player loosely (so player stays in view but map is fixed-ish relative to player)
+                // actually the request was "tactical view", previous was full map fit. 
+                // Now we want "quarter map". 
+                // Let's implement a camera that follows player but keeps bounds.
+                
+                let camX = -this.player.x * this.camera.scale + canvas.width/2;
+                let camY = -this.player.y * this.camera.scale + canvas.height/2;
+                
+                // Clamp
+                let minX = canvas.width - WORLD_WIDTH * this.camera.scale;
+                let minY = canvas.height - WORLD_HEIGHT * this.camera.scale;
+                
+                if (camX > 0) camX = 0;
+                if (camX < minX) camX = minX;
+                if (camY > 0) camY = 0;
+                if (camY < minY) camY = minY;
+                
+                this.camera.offsetX = camX;
+                this.camera.offsetY = camY;
+
+
+                // Aim (Face Mouse with Scale Compensation)
+                let mx = (this.mouse.x - this.camera.offsetX) / this.camera.scale;
+                let my = (this.mouse.y - this.camera.offsetY) / this.camera.scale;
+                this.player.rotation = Math.atan2(my - this.player.y, mx - this.player.x);
+
+                // Cooldowns
+                this.player.dashCooldown -= dt; this.player.invincible -= dt;
+                
+                // Heat
+                if (this.player.overheated) {
+                    this.player.heat -= (this.stats.fireRate.heatDecay * 1.5) * dt; 
+                    if (this.player.heat <= 0) { this.player.heat = 0; this.player.overheated = false; AudioSys.playCooldown(); }
+                } else {
+                    this.player.heat -= this.stats.fireRate.heatDecay * dt;
+                    if (this.player.heat < 0) this.player.heat = 0;
+                }
+                
+                // Spinup Decay (Gatling)
+                if (!this.mouse.down) this.player.spinup = Math.max(0, this.player.spinup - dt * 2);
+
+                this.updateUI();
+
+                // Fire
+                this.player.lastShot -= dt;
+                if(this.mouse.down && this.player.lastShot <= 0 && !this.player.overheated) {
+                     // Support multiple equipped weapons (player.weapons)
+                     const weapons = Array.isArray(this.player.weapons) ? this.player.weapons.slice() : [this.player.weapon];
+                     // Compute per-weapon stats and fire each; aggregate heat and choose cooldown
+                     const rates = [];
+                     let totalHeat = 0;
+                     const rotd = this.player.rotation;
+                     for (let w of weapons) {
+                         let rate = this.stats.fireRate.val;
+                         let heatGen = 10;
+                         let damage = this.stats.damage.val;
+                         let pierce = false;
+                         if (WEAPON_DEFS[w]) {
+                             const base = WEAPON_DEFS[w].dmg || 8;
+                             damage = Math.max(1, Math.floor(base * Math.max(0.5, this.stats.damage.val)));
+                         }
+                         if (this.unlocks.rail) pierce = true;
+                         // weapon-specific tuning
+                         if (w === 'rail' || (WEAPON_DEFS[w] && WEAPON_DEFS[w].type === 'rail')) { rate *= 1.5; heatGen = 25; pierce = true; }
+                         if (w === 'homing') { rate *= 1.2; heatGen = 8; }
+                         if (w === 'gatling') {
+                             this.player.spinup = Math.min(1.0, this.player.spinup + dt * 2);
+                             rate = rate * (1.2 - this.player.spinup);
+                             heatGen = 6; damage = Math.floor(damage * 0.6);
+                         }
+                         if (w === 'prism') { rate *= 1.2; heatGen = 20; pierce = true; }
+
+                         // spawn behavior per type
+                         const def = WEAPON_DEFS[w] || {};
+                         const speed = def.speed || 800;
+                         if (w === 'gatling') {
+                             const spread = (1.0 - this.player.spinup) * 0.2;
+                             const a = rotd + (Math.random()-0.5)*spread;
+                             game.spawnBullet(this.player.x, this.player.y, Math.cos(a)*speed, Math.sin(a)*speed, true, damage, 'gatling', null, pierce);
+                         } else if (def.type === 'missile') {
+                             for (let m=0;m<2;m++) {
+                                 const a = rotd + (Math.random()-0.5) * 0.15;
+                                 game.spawnBullet(this.player.x, this.player.y, Math.cos(a)*speed, Math.sin(a)*speed, true, damage, w, null, pierce);
+                             }
+                         } else if (def.type === 'homing') {
+                             game.spawnBullet(this.player.x, this.player.y, Math.cos(rotd)*speed, Math.sin(rotd)*speed, true, damage, 'homing_mini');
+                         } else {
+                             game.spawnBullet(this.player.x, this.player.y, Math.cos(rotd)*speed, Math.sin(rotd)*speed, true, damage, w, null, pierce);
+                         }
+
+                         rates.push(rate);
+                         totalHeat += heatGen;
+                         AudioSys.playShoot(w);
+                     }
+                     const overallRate = Math.max(0.02, Math.min(...rates) * (weapons.length>1 ? 0.85 : 1.0));
+                     this.player.lastShot = overallRate;
+                     this.player.heat += totalHeat;
+                     if (this.player.heat >= this.player.maxHeat) { this.player.heat = this.player.maxHeat; this.player.overheated = true; AudioSys.playOverheat(); }
+                }
+                
+                // Update Squads
+                this.squads.forEach(s => s.update(dt, this.player)); 
+                this.squads = this.squads.filter(s => s.active);
+
+                // Update existing drone objects and respawn missing ones according to `player.activeDrones`
+                this.activeDroneObjs.forEach(d => d.update(dt, this.player, this.activeEnemies, this.activeBullets, this.player.droneFormation));
+                // clean inactive and release
+                this.activeDroneObjs = this.activeDroneObjs.filter(d => d && d.active);
+                // ensure there are drone instances for each requested active drone type
+                for (let i=0; i < (this.player.activeDrones ? this.player.activeDrones.length : 0); i++) {
+                    const wantedType = this.player.activeDrones[i];
+                    // find existing drone with same assigned index
+                    const exists = this.activeDroneObjs.find(dd => dd && dd.active && dd.index === i && dd.type === wantedType);
+                    if (!exists) {
+                        const d = this.drones.get(); d.spawn(wantedType, i, this.player.activeDrones.length); this.activeDroneObjs.push(d);
+                        console.debug('spawned drone instance', { index: i, type: wantedType, totalActiveRequested: this.player.activeDrones.length, activeDroneObjs: this.activeDroneObjs.length });
+                    }
+                }
+                this.activeGlitches.forEach(g => g.update(dt));
+
+                // Wave Logic
+                if (this.activeEnemies.length === 0 && this.state === 'PLAYING') {
+                     // Wave Clear Phase
+                     if (!this.waveClearTimer) {
+                         this.waveClearTimer = 4.0;
+                         document.getElementById('waveDisplay').innerText = "SECTOR SECURED // COLLECT DATA";
+                         document.getElementById('waveDisplay').className = "text-xl ui-font text-green-400 mt-1 glitch-effect";
+                         NarrativeSys.addLog('victory');
+                     }
+                     
+                     this.waveClearTimer -= dt;
+                     if (this.waveClearTimer <= 0) {
+                         this.state = 'UPGRADE';
+                         this.wave++;
+                         this.refreshUpgradeUI();
+                         document.getElementById('upgradeMenu').classList.remove('hidden');
+                         AudioSys.stopMusic();
+                         this.waveClearTimer = null;
+                     }
+                } else if (this.activeEnemies.length > 0) {
+                     const boss = this.activeEnemies.find(e => e.faction.name === 'HEXA' || e.isLeader);
+                     if (boss && boss.faction.name === 'HEXA') {
+                         const pct = (boss.hp / boss.maxHp) * 100;
+                         document.getElementById('bossHpBar').style.width = pct + '%';
+                     }
+                }
+
+                // Collisions (Bullets)
+                for (let i = this.activeBullets.length-1; i>=0; i--) {
+                    const b = this.activeBullets[i];
+                    b.update(dt, this.activeEnemies);
+                    
+                    if (b.type === 'deflector_beam' && b.active) {
+                        if (b.target && b.target.active) { b.target.active = false; AudioSys.playShieldHit(); }
+                    }
+
+                    if (!b.active) { this.bullets.release(b); this.activeBullets.splice(i,1); continue; }
+                    
+                    if (b.isPlayer) {
+                        for (let j = this.activeEnemies.length-1; j>=0; j--) {
+                            const e = this.activeEnemies[j];
+                            if (Math.abs(b.x-e.x) < e.width/2+b.width/2 && Math.abs(b.y-e.y) < e.height/2+b.height/2) {
+                                
+                                if (b.type === 'hacker_emp') { e.slowed = 3.0; b.active = false; AudioSys.playShieldHit(); continue; }
+                                
+                                // Shield absorption mechanic
+                                let dmg = b.damage || 0;
+                                if (e.shieldMax && e.shieldStrength > 0) {
+                                    const absorb = Math.min(e.shieldStrength, Math.ceil(dmg * 0.6));
+                                    e.shieldStrength -= absorb;
+                                    dmg = Math.max(0, dmg - absorb);
+                                    e.shieldRechargeTimer = 1.5; // delay before regen
+                                    try { game.spawnParticles(e.x, e.y, 6, e.faction.colorSecondary, 20, 1, 80); } catch(e) {}
+                                }
+                                e.hp -= dmg;
+                                if (!b.pierce) b.active = false;
+                                
+                                // Prism Split
+                                if (b.type === 'prism') {
+                                    for(let k=0; k<2; k++) {
+                                        let angle = b.rotation + (k===0?0.5:-0.5);
+                                        game.spawnBullet(b.x, b.y, Math.cos(angle)*600, Math.sin(angle)*600, true, b.damage*0.5, 'prism_shard');
+                                    }
+                                    b.active = false;
+                                }
+
+                                if (e.hp <= 0) {
+                                    this.score += e.score; AudioSys.playExplosion();
+                                    // ECONOMY BALANCE: Increased drop values
+                                    let dropVal = 5 + Math.floor(this.wave);
+                                    if(e.isLeader) dropVal = 25 + Math.floor(this.wave * 2);
+                                    if(e.faction.name === 'HEXA') dropVal = 500;
+                                    
+                                    const c = this.pickups.get();
+                                    c.spawn(e.x, e.y, dropVal); this.activePickups.push(c);
+                                    // particles on death
+                                    this.spawnParticles(e.x, e.y, 12, e.faction.colorPrimary || '#FFF', 12, Math.max(1, e.width*0.4), 120);
+                                    e.active = false; this.enemies.release(e); this.activeEnemies.splice(j,1);
+                                }
+                                if(!b.active) break;
+                            }
+                        }
+                    } else {
+                        // FIX: Correct collision with player (Hypot instead of abs x only)
+                        if (this.player.invincible <= 0 && Math.hypot(b.x - this.player.x, b.y - this.player.y) < 15) {
+                            this.takeDamage(b.damage); b.active=false;
+                            // player hit particles
+                            this.spawnParticles(this.player.x, this.player.y, 10, COLORS.danger, 8, 2, 180);
+                        }
+                    }
+                }
+                
+                // Collisions (Enemy/Glitch)
+                for (let i=this.activeEnemies.length-1; i>=0; i--) {
+                    const e = this.activeEnemies[i];
+                    e.update(dt, this.player);
+                    // FIX: Correct collision with player
+                    if(this.player.invincible <= 0 && Math.hypot(e.x - this.player.x, e.y - this.player.y) < e.width/1.5) {
+                        this.takeDamage(20);
+                        if(e.faction.name !== 'HEXA') { e.active=false; this.enemies.release(e); this.activeEnemies.splice(i,1); }
+                    }
+                }
+                
+                for (let g of this.activeGlitches) {
+                    if (this.player.invincible <= 0 && Math.abs(g.x-this.player.x) < 20 && Math.abs(g.y-this.player.y) < 20) {
+                        this.takeDamage(10);
+                        this.spawnParticles(this.player.x, this.player.y, 6, COLORS.magenta, 6, 1.5, 120);
+                    }
+                }
+
+                for(let i=this.activePickups.length-1; i>=0; i--) {
+                    const p = this.activePickups[i];
+                    p.update(dt, this.player);
+                    if(Math.hypot(p.x-this.player.x, p.y-this.player.y) < 35) {
+                        this.currency += p.value; AudioSys.playCollect();
+                        // pickup sparkle
+                        this.spawnParticles(p.x, p.y, 8, COLORS.yellow, 6, 1.2, 80);
+                        p.active = false; this.pickups.release(p); this.activePickups.splice(i,1);
+                        this.updateUI();
+                    }
+                }
+
+                // Update particles
+                for (let i=this.activeParticles.length-1; i>=0; i--) {
+                    const p = this.activeParticles[i];
+                    p.update(dt);
+                    if (!p.active) { this.particles.release(p); this.activeParticles.splice(i,1); }
+                }
+            },
+            
+            takeDamage(amt) {
+                this.player.hp -= amt;
+                this.player.invincible = 1.0;
+                AudioSys.playExplosion();
+                this.updateUI();
+                if(this.player.hp <= 0) this.gameOver();
+            },
+
+            draw() {
+                ctx.fillStyle = document.body.style.backgroundColor || '#0B0F1A';
+                ctx.fillRect(0,0,canvas.width,canvas.height);
+                
+                // Vignette
+                const vig = document.getElementById('vignetteOverlay');
+                if (vig) vig.style.boxShadow = `inset 0 0 ${100 + this.wave*10}px ${this.player.hp < 30 ? 'rgba(255,0,0,0.5)' : 'rgba(0,0,0,0.8)'}`;
+                
+                ctx.save();
+                
+                // APPLY TACTICAL SCALE AND CENTER
+                ctx.translate(this.camera.offsetX, this.camera.offsetY);
+                ctx.scale(this.camera.scale, this.camera.scale);
+
+                // Draw World
+                this.background.draw(ctx, WORLD_WIDTH, WORLD_HEIGHT);
+                
+                ctx.strokeStyle = '#FF0000'; ctx.lineWidth = 5; ctx.strokeRect(0,0,WORLD_WIDTH,WORLD_HEIGHT);
+
+                this.activeGlitches.forEach(g => g.draw(ctx));
+                this.activePickups.forEach(p => p.draw(ctx));
+                this.activeBullets.forEach(b => b.draw(ctx));
+                this.activeEnemies.forEach(e => e.draw(ctx));
+                this.activeDroneObjs.forEach(d => d.draw(ctx));
+                // particles (draw above world elements for impacts/trails)
+                this.activeParticles.forEach(p => p.draw(ctx));
+                
+                if (this.player.invincible <= 0 || Math.floor(Date.now()/50)%2!==0) {
+                    this.drawPlayer();
+                }
+
+                ctx.restore();
+                // Draw radar overlay (DOM canvas)
+                try { this.drawRadar(); } catch(e) { /* ignore */ }
+            },
+
+            drawPlayer() {
+                ctx.save(); 
+                ctx.translate(this.player.x, this.player.y); 
+                ctx.rotate(this.player.rotation + Math.PI/2);
+                
+                if (this.player.dashCooldown > 0) ctx.globalAlpha = 0.5;
+                ctx.shadowBlur = 10; ctx.shadowColor = COLORS.cyan;
+                
+                let mainColor = COLORS.cyan;
+                if (this.player.overheated) mainColor = COLORS.danger;
+                if (this.player.hp < 30) mainColor = COLORS.warning;
+
+                const speedLvl = this.stats.speed.lvl;
+                if (this.keys['KeyW']) {
+                    ctx.fillStyle = this.player.overheated ? COLORS.danger : COLORS.cyan;
+                    let trailLen = 15 + speedLvl * 8; 
+                    let trailWidth = 5 + speedLvl * 2; 
+
+                    ctx.beginPath(); ctx.moveTo(-trailWidth/2, 12); ctx.lineTo(0, 12 + trailLen + Math.random()*5); ctx.lineTo(trailWidth/2, 12); ctx.fill();
+                    
+                    if (speedLvl > 1) {
+                         let sideLen = trailLen * 0.6;
+                        ctx.beginPath(); ctx.moveTo(-10, 8); ctx.lineTo(-12, 8 + sideLen); ctx.lineTo(-8, 8); ctx.fill();
+                        ctx.beginPath(); ctx.moveTo(10, 8); ctx.lineTo(12, 8 + sideLen); ctx.lineTo(8, 8); ctx.fill();
+                    }
+                }
+
+                // HULL
+                ctx.strokeStyle = mainColor; ctx.lineWidth = 2;
+                ctx.fillStyle = "#000";
+                
+                ctx.beginPath(); ctx.moveTo(0, -15); ctx.lineTo(10, 10); ctx.lineTo(0, 6); ctx.lineTo(-10, 10); ctx.closePath(); 
+                ctx.fill(); ctx.stroke();
+
+                // ARMOR VISUALS
+                const hpLvl = this.stats.health.lvl;
+                if (hpLvl > 1) {
+                    ctx.strokeStyle = COLORS.shield;
+                    ctx.beginPath(); ctx.moveTo(-8, 5); ctx.lineTo(-14, 14); ctx.stroke();
+                    ctx.beginPath(); ctx.moveTo(8, 5); ctx.lineTo(14, 14); ctx.stroke();
+                }
+                if (hpLvl > 2) {
+                    ctx.strokeRect(-8, -5, 4, 10);
+                    ctx.strokeRect(4, -5, 4, 10);
+                }
+                if (hpLvl > 3) {
+                     ctx.beginPath(); ctx.moveTo(-5, -5); ctx.lineTo(0, -10); ctx.lineTo(5, -5); ctx.stroke();
+                }
+
+                // WEAPONS
+                const w = this.player.weapon;
+                if (this.unlocks.rail) {
+                    ctx.strokeStyle = COLORS.purple; ctx.lineWidth = 1;
+                    ctx.beginPath(); ctx.moveTo(-4, 10); ctx.lineTo(-4, 20); ctx.stroke();
+                    ctx.beginPath(); ctx.moveTo(4, 10); ctx.lineTo(4, 20); ctx.stroke();
+                }
+                if (this.unlocks.homing) {
+                    ctx.fillStyle = COLORS.magenta; ctx.fillRect(-2, -5, 4, 2);
+                }
+
+                if (w === 'plasma') {
+                    ctx.fillStyle = COLORS.cyan; ctx.fillRect(-1,-18, 2, 6);
+                } else if (w === 'rail') {
+                    ctx.fillStyle = COLORS.purple; 
+                    ctx.fillRect(-3, -25, 1, 15); ctx.fillRect(2, -25, 1, 15); 
+                    ctx.globalAlpha = 0.5; ctx.fillRect(-2, -25, 4, 15); ctx.globalAlpha = 1.0;
+                } else if (w === 'gatling') {
+                    ctx.strokeStyle = COLORS.yellow; 
+                    let off = Math.sin(Date.now()/50)*2;
+                    ctx.strokeRect(-4+off, -20, 2, 10); ctx.strokeRect(2+off, -20, 2, 10);
+                    ctx.strokeRect(-1, -22, 2, 12);
+                } else if (w === 'prism') {
+                    ctx.fillStyle = COLORS.magenta; 
+                    ctx.beginPath(); ctx.moveTo(0,-24); ctx.lineTo(4,-15); ctx.lineTo(0,-12); ctx.lineTo(-4,-15); ctx.fill();
+                } else if (w === 'homing') {
+                    ctx.fillStyle = COLORS.danger;
+                    ctx.fillRect(-12, 0, 4, 8); ctx.fillRect(8, 0, 4, 8);
+                }
+
+                if (this.player.maxDrones > 0) {
+                     ctx.strokeStyle = "#555";
+                     ctx.lineWidth = 1;
+                     if (this.player.activeDrones.length > 0) {
+                         ctx.globalAlpha = 0.2;
+                         ctx.beginPath(); ctx.arc(0,0, 30, 0, Math.PI*2); ctx.stroke();
+                         ctx.globalAlpha = 1.0;
+                     }
+                }
+
+                if (this.player.overheated) {
+                    ctx.fillStyle = `rgba(255, 0, 0, ${Math.random()*0.5})`;
+                    ctx.beginPath(); ctx.arc(0,0, 15, 0, Math.PI*2); ctx.fill();
+                }
+                
+                if (this.player.hp < 30 && Math.random() > 0.8) {
+                    ctx.strokeStyle = COLORS.warning;
+                    ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo((Math.random()-0.5)*30, (Math.random()-0.5)*30); ctx.stroke();
+                }
+
+                ctx.restore();
+            },
+
+            // Draw a small tactical radar in the HUD canvas
+            drawRadar() {
+                const rc = document.getElementById('radarCanvas');
+                if(!rc) return;
+                const rctx = rc.getContext('2d');
+                const w = rc.width; const h = rc.height;
+                rctx.clearRect(0,0,w,h);
+
+                // Background ring
+                rctx.fillStyle = 'rgba(0,0,0,0.2)'; rctx.fillRect(0,0,w,h);
+                rctx.strokeStyle = 'rgba(255,255,255,0.06)'; rctx.strokeRect(0,0,w,h);
+
+                const cx = w/2, cy = h/2;
+                // draw range circle
+                rctx.beginPath(); rctx.strokeStyle = 'rgba(255,255,255,0.06)'; rctx.arc(cx, cy, Math.min(cx,cy)-8, 0, Math.PI*2); rctx.stroke();
+
+                // Map world-relative positions to radar
+                const scale = 0.06; // compress world distances
+
+                const drawDot = (ex, ey, size, color, isBoss=false) => {
+                    // compute relative position with wrapping to nearest
+                    let dx = ex - this.player.x; let dy = ey - this.player.y;
+                    if (dx > WORLD_WIDTH/2) dx -= WORLD_WIDTH; if (dx < -WORLD_WIDTH/2) dx += WORLD_WIDTH;
+                    if (dy > WORLD_HEIGHT/2) dy -= WORLD_HEIGHT; if (dy < -WORLD_HEIGHT/2) dy += WORLD_HEIGHT;
+                    const rx = cx + dx * scale; const ry = cy + dy * scale;
+                    // off-canvas indicator
+                    const dist = Math.hypot(rx-cx, ry-cy);
+                    if (dist > Math.min(cx,cy)-6) {
+                        // draw directional arrow at edge
+                        const ang = Math.atan2(ry-cy, rx-cx);
+                        const exx = cx + Math.cos(ang) * (Math.min(cx,cy)-8);
+                        const eyy = cy + Math.sin(ang) * (Math.min(cx,cy)-8);
+                        rctx.fillStyle = color; rctx.beginPath(); rctx.moveTo(exx, eyy); rctx.arc(exx, eyy, size, 0, Math.PI*2); rctx.fill();
+                        return;
+                    }
+                    rctx.fillStyle = color; rctx.beginPath(); rctx.arc(rx, ry, size, 0, Math.PI*2); rctx.fill();
+                    if (isBoss) {
+                        rctx.strokeStyle = 'rgba(255,255,255,0.6)'; rctx.beginPath(); rctx.arc(rx, ry, size+4, 0, Math.PI*2); rctx.stroke();
+                    }
+                };
+
+                // Draw player center
+                rctx.fillStyle = COLORS.cyan; rctx.beginPath(); rctx.arc(cx, cy, 4,0,Math.PI*2); rctx.fill();
+
+                // Enemies
+                for (let e of this.activeEnemies) {
+                    if(!e.active) continue;
+                    const col = e.faction.colorPrimary || '#FFF';
+                    const sz = e.shipClass ? Math.max(2, e.shipClass.radarSize) : 3;
+                    const isBoss = (e.shipClass && e.shipClass.id === 'BISMARK') || e.faction.name === 'HEXA' && e.isLeader;
+                    drawDot(e.x, e.y, sz, col, isBoss);
+                }
+            },
+
+            gameOver() {
+                this.state = 'GAMEOVER';
+                document.getElementById('hud').classList.add('hidden');
+                document.getElementById('gameOverScreen').classList.remove('hidden');
+                document.getElementById('finalScore').innerText = this.score;
+                document.getElementById('finalSector').innerText = this.wave;
+                AudioSys.stopMusic();
+            }
+        };
+
+        window.onload = () => game.init();
+    </script>
+</body>
+</html>
